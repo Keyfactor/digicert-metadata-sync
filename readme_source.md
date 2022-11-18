@@ -1,5 +1,5 @@
 # digicert-metadata-sync
-A tool to automatically synchronize metadata fields and their content between DigiCert and Keyfactor.
+A tool to automatically synchronize metadata fields and their content between Digicert and Keyfactor.
 
 ## Overview
 This tool primarily sets up metadata fields in Keyfactor for both the custom metadata fields in DigiCert, which are named as such, but can also setup metadata fields in Keyfactor for non-custom fields available in DigiCert and unavailable in Keyfactor by default,   such as the Digicert Cert ID and the Organization contact. These fields are referred to as manual fields in the context of this tool.
