@@ -66,5 +66,5 @@ The datatype the field will use in Keyfactor. Currently accepted types are Int a
 String to be input into Keyfactor as the metadata field hint.
 
 - <b>KeyfactorAllowAPI</b>  
-Allows API management of this metadata field in Keyfactor. Should be set to true for continuous synchronization with this tool.
+Allows API management of this metadata field in Keyfactor. Should be set to true for continuous synchronization using this tool.
 
