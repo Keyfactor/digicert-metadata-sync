@@ -8,13 +8,9 @@ This project is meant to be a template to quickly build a basic integration prod
 
 
 
----
 
 
 
-
-
----
 
 # digicert-metadata-sync
 A tool to automatically synchronize metadata fields and their content between DigiCert and Keyfactor.
