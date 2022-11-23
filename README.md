@@ -1,12 +1,12 @@
 # Digicert Metadata Sync
 
-This project is meant to be a template to quickly build a basic integration product build. Currently in dev, a work in progress,
+A tool to automatically synchronize metadata fields and their content from DigiCert to Keyfactor. This utility is indented to be used in conjunction with the Digicert AnyGateway and adds to the information already synchronized by the gateway.
 
 #### Integration status: Prototype - Demonstration quality. Not for use in customer environments.
 
-## About the Keyfactor 
+## About the Keyfactor API Client
 
-
+This API client allows for programmatic management of Keyfactor resources.
 
 
 
