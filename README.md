@@ -13,7 +13,6 @@ This API client allows for programmatic management of Keyfactor resources.
 
 
 # digicert-metadata-sync
-A tool to automatically synchronize metadata fields and their content from DigiCert to Keyfactor.
 
 ## Overview
 This tool primarily sets up metadata fields in Keyfactor for the custom metadata fields in DigiCert, which are named as such, but can also setup metadata fields in Keyfactor for non-custom fields available in DigiCert and unavailable in Keyfactor by default,   such as the Digicert Cert ID and the Organization contact.  These fields are referred to as manual fields in the context of this tool. After setting up these fields, the tool proceeds to update the contents of these fields. This tool only adds metadata to certificates that have already been imported into Keyfactor. Additionally, this tool requires a properly installed and functioning AnyGateway configured to work with Keyfactor and Digicert.
