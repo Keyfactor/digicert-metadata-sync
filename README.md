@@ -16,7 +16,7 @@ This project is meant to be a template to quickly build a basic integration prod
 A tool to automatically synchronize metadata fields and their content from DigiCert to Keyfactor.
 
 ## Overview
-This tool primarily sets up metadata fields in Keyfactor for the custom metadata fields in DigiCert, which are named as such, but can also setup metadata fields in Keyfactor for non-custom fields available in DigiCert and unavailable in Keyfactor by default,   such as the Digicert Cert ID and the Organization contact.  These fields are referred to as manual fields in the context of this tool. After setting up these fields, the tool proceeds to update the contents of these fields. This tool only adds metadata to certificates that have already been imported into Keyfactor.
+This tool primarily sets up metadata fields in Keyfactor for the custom metadata fields in DigiCert, which are named as such, but can also setup metadata fields in Keyfactor for non-custom fields available in DigiCert and unavailable in Keyfactor by default,   such as the Digicert Cert ID and the Organization contact.  These fields are referred to as manual fields in the context of this tool. After setting up these fields, the tool proceeds to update the contents of these fields. This tool only adds metadata to certificates that have already been imported into Keyfactor. Additionally, this tool requires a properly installed and functioning AnyGateway configured to work with Keyfactor and Digicert.
 
 ## Installation and Usage
 The tool comes as a Windows executable. The tool performs synchronization each time its run. For the tool to run automatically, it needs to be added as a scheduled process using Windows. The advised interval for running it is once per week. The files App.config and manualfields.json need to be present in the same directory as the tool for it to run correctly. The specific location from which the tool is ran does not matter, but it needs to have access to both the Keyfactor API endpoint as well as  Digicert, and appropriate permissions for access to the configuration files. 
@@ -24,7 +24,7 @@ An explanation for the settings found in these files is given below.
 
 
 ## Settings
-
+The settings currently present in these files are shown as an example and need to be configured for your specific situation.
 ### app.config settings
 - <b>DigicertAPIKey</b>  
 Standard DigiCert API access key 
