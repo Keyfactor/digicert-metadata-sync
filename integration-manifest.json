@@ -1,29 +1,10 @@
 {
   "$schema": "https://keyfactor.github.io/integration-manifest-schema.json",
-  "integration_type": "template",
+  "integration_type": "api-client",
   "name": "Digicert Metadata Sync",
-  "status": "prototype",
-  "description": "This project is meant to be a template to quickly build a basic integration product build. Currently in dev, a work in progress,",
-  "link_github": false,
-  "update_catalog": false,
-  "about": {
-    "orchestrator": {
-      "win": {
-        "supportsCreateStore": false,
-        "supportsDiscovery": false,
-        "supportsManagementAdd": false,
-        "supportsManagementRemove": false,
-        "supportsReenrollment": false,
-        "supportsInventory": false
-      },
-      "linux": {
-        "supportsCreateStore": false,
-        "supportsDiscovery": false,
-        "supportsManagementAdd": false,
-        "supportsManagementRemove": false,
-        "supportsReenrollment": false,
-        "supportsInventory": false
-      }
-    }
-  }
+  "status": "production",
+  "description": "A tool to automatically synchronize metadata fields and their content from DigiCert to Keyfactor. This utility is indented to be used in conjunction with the Digicert AnyGateway and adds to the information already synchronized by the gateway.",
+  "link_github": true,
+  "update_catalog": true,
+  "support_level": "kf-community"
 }
