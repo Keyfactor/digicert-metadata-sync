@@ -30,7 +30,7 @@
       "DigicertFieldName": "IntegerField",
       "KeyfactorMetadataFieldName": "",
       "KeyfactorDescription": "Another test field but with an int.",
-      "KeyfactorDataType": "String",
+      "KeyfactorDataType": "Integer",
       "KeyfactorHint": "",
       "KeyfactorAllowAPI": "True"
     }
