@@ -10,10 +10,10 @@ An explanation for the settings found in these files is given below.
 ## Command Line Arguments
 One of these two arguments needs to be used for the tool to run.
 - <b>"kftodc"</b>  
-Syncronizes the contents of custom fields listed in manualfields.json from Keyfactor to DigiCert. If the fields in manualfields.json do not exist in Keyfactor or DigiCert, they are created first. Example: ```.\DigicertMetadataSync.exe dctokf```
+Syncronizes the contents of custom fields listed in manualfields.json from Keyfactor to DigiCert. If the fields in manualfields.json do not exist in Keyfactor or DigiCert, they are created first. Example: ```.\DigicertMetadataSync.exe kftodc```
 - <b>"dctokf"</b>  
 Syncronizes the contents of both custom and non-custom fields from DigiCert to Keyfactor. The fields are listed in manualfields.json, and are created if necessary.
-Example: ```.\DigicertMetadataSync.exe kftodc```
+Example: ```.\DigicertMetadataSync.exe dctokf```
 
 ## Settings
 The settings currently present in these files are shown as an example and need to be configured for your specific situation.
