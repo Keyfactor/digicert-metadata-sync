@@ -70,6 +70,14 @@ partial class DigicertSync
         return Regex.Replace(str, @"\s+", "_-_");
     }
 
+    public static bool CheckMode(string mode)
+    {
+        if ((mode == "kftodc") || (mode == "dctokf")){
+            return true;
+        }
+        return false;
+    }
+
     private static List<KeyfactorMetadataInstanceSendoff> convertlisttokf(List<ReadInMetadataField> inputlist,
         string replacementcharacter)
     {
