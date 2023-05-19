@@ -22,7 +22,7 @@ namespace DigicertMetadataSync;
 // It will only add new fields.
 partial class DigicertSync
 {
-    public static int AddFieldsToKeyfactor(List<KeyfactorMetadataInstanceSendoff> inputlist,
+    public static Tuple<int,List<string>> AddFieldsToKeyfactor(List<KeyfactorMetadataInstanceSendoff> inputlist,
         List<KeyfactorMetadataInstance> existingmetadatalist, bool noexistingfields, string keyfactorusername,
         string keyfactorpassword, string keyfactorapilocation)
     {
@@ -30,6 +30,7 @@ partial class DigicertSync
         var addfieldsclient = new RestClient();
         addfieldsclient.Authenticator = new HttpBasicAuthenticator(keyfactorusername, keyfactorpassword);
         int totalnumberadded = 0;
+        List<string> newfields = new List<string>();
         foreach (var metadatainstance in inputlist)
         {
             if (noexistingfields == false)
@@ -37,6 +38,7 @@ partial class DigicertSync
                 var fieldquery = from existingmetadatainstance in existingmetadatalist
                     where existingmetadatainstance.Name == metadatainstance.Name
                     select existingmetadatainstance;
+                // If field does not exist in Keyfactor, add it.
                 if (!fieldquery.Any())
                 {
                     var addfieldrequest = new RestRequest(addfieldstokeyfactorurl);
@@ -50,6 +52,7 @@ partial class DigicertSync
                     try
                     {
                         metadataresponse = addfieldsclient.Post(addfieldrequest);
+                        newfields.Add(metadatainstance.Name);
                         ++totalnumberadded;
                     }
                     catch (HttpRequestException e)
@@ -90,7 +93,8 @@ partial class DigicertSync
                 }
             }
         }
+        Tuple<int, List<string>> returnvals = new Tuple<int, List<string>>(totalnumberadded, newfields);
 
-        return totalnumberadded;
+        return returnvals;
     }
 }
