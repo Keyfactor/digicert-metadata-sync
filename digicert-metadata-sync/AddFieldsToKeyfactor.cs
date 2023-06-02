@@ -31,15 +31,49 @@ partial class DigicertSync
         addfieldsclient.Authenticator = new HttpBasicAuthenticator(keyfactorusername, keyfactorpassword);
         int totalnumberadded = 0;
         List<string> newfields = new List<string>();
-        foreach (var metadatainstance in inputlist)
+        if (inputlist.Count != 0)
         {
-            if (noexistingfields == false)
+            foreach (var metadatainstance in inputlist)
             {
-                var fieldquery = from existingmetadatainstance in existingmetadatalist
-                    where existingmetadatainstance.Name == metadatainstance.Name
-                    select existingmetadatainstance;
-                // If field does not exist in Keyfactor, add it.
-                if (!fieldquery.Any())
+                if (noexistingfields == false)
+                {
+                    var fieldquery = from existingmetadatainstance in existingmetadatalist
+                                     where existingmetadatainstance.Name == metadatainstance.Name
+                                     select existingmetadatainstance;
+                    // If field does not exist in Keyfactor, add it.
+                    if (!fieldquery.Any())
+                    {
+                        var addfieldrequest = new RestRequest(addfieldstokeyfactorurl);
+                        addfieldrequest.AddHeader("Content-Type", "application/json");
+                        addfieldrequest.AddHeader("Accept", "application/json");
+                        addfieldrequest.AddHeader("x-keyfactor-api-version", "1");
+                        addfieldrequest.AddHeader("x-keyfactor-requested-with", "APIClient");
+                        var serializedfield = JsonConvert.SerializeObject(metadatainstance);
+                        addfieldrequest.AddParameter("application/json", serializedfield, ParameterType.RequestBody);
+                        RestResponse metadataresponse = new RestResponse();
+                        try
+                        {
+                            metadataresponse = addfieldsclient.Post(addfieldrequest);
+                            newfields.Add(metadatainstance.Name);
+                            ++totalnumberadded;
+                        }
+                        catch (HttpRequestException e)
+                        {
+                            Console.WriteLine(metadataresponse.Content);
+                            throw e;
+                        }
+                    }
+                    else
+                    {
+                        if (fieldquery.FirstOrDefault().DataType != metadatainstance.DataType)
+                        {
+                            //Throw error if datatype included in keyfactor does not match the digicert one.
+                            NotSupportedException mismatchedtypes = new NotSupportedException();
+                            throw mismatchedtypes;
+                        }
+                    }
+                }
+                else
                 {
                     var addfieldrequest = new RestRequest(addfieldstokeyfactorurl);
                     addfieldrequest.AddHeader("Content-Type", "application/json");
@@ -52,7 +86,6 @@ partial class DigicertSync
                     try
                     {
                         metadataresponse = addfieldsclient.Post(addfieldrequest);
-                        newfields.Add(metadatainstance.Name);
                         ++totalnumberadded;
                     }
                     catch (HttpRequestException e)
@@ -60,36 +93,6 @@ partial class DigicertSync
                         Console.WriteLine(metadataresponse.Content);
                         throw e;
                     }
-                }
-                else
-                {
-                    if (fieldquery.FirstOrDefault().DataType != metadatainstance.DataType)
-                    {
-                        //Throw error if datatype included in keyfactor does not match the digicert one.
-                        NotSupportedException mismatchedtypes = new NotSupportedException();
-                        throw mismatchedtypes;
-                    }
-                }
-            }
-            else
-            {
-                var addfieldrequest = new RestRequest(addfieldstokeyfactorurl);
-                addfieldrequest.AddHeader("Content-Type", "application/json");
-                addfieldrequest.AddHeader("Accept", "application/json");
-                addfieldrequest.AddHeader("x-keyfactor-api-version", "1");
-                addfieldrequest.AddHeader("x-keyfactor-requested-with", "APIClient");
-                var serializedfield = JsonConvert.SerializeObject(metadatainstance);
-                addfieldrequest.AddParameter("application/json", serializedfield, ParameterType.RequestBody);
-                RestResponse metadataresponse = new RestResponse();
-                try
-                {
-                    metadataresponse = addfieldsclient.Post(addfieldrequest);
-                    ++totalnumberadded;
-                }
-                catch (HttpRequestException e)
-                {
-                    Console.WriteLine(metadataresponse.Content);
-                    throw e;
                 }
             }
         }
