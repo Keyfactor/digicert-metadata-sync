@@ -103,11 +103,11 @@ namespace DigicertMetadataSync
                     var kfdatatype = "String";
                     if (customdigicertmetadatafieldlist[i].data_type != null)
                     {
-                        kfdatatype = customdigicertmetadatafieldlist[i].data_type;
+                        localkffieldinstance.KeyfactorDataType = customdigicertmetadatafieldlist[i].data_type;
                     }
                     else
                     {
-                        kfdatatype = "String";
+                        localkffieldinstance.KeyfactorDataType = "String";
                     }
                     if (customdigicertmetadatafieldlist[i].label != null)
                     {
@@ -119,10 +119,22 @@ namespace DigicertMetadataSync
                         localkffieldinstance.DigicertFieldName = customdigicertmetadatafieldlist[i].label;
                         localkffieldinstance.KeyfactorMetadataFieldName = ReplaceAllWhiteSpaces(customdigicertmetadatafieldlist[i].label, replacementcharacter);
                     }
+                    else
+                    {
+                        localkffieldinstance.DigicertFieldName = "";
+                        localkffieldinstance.KeyfactorMetadataFieldName = "";
+                    }
                     if (customdigicertmetadatafieldlist[i].description != null)
                     {
                         localkffieldinstance.KeyfactorDescription = customdigicertmetadatafieldlist[i].description;
                     }
+                    else
+                    {
+                        localkffieldinstance.KeyfactorDescription = "None.";
+                    }
+
+                    localkffieldinstance.KeyfactorAllowAPI = "True";
+                    localkffieldinstance.KeyfactorHint = "";
                     //Other parameters like enrollment can be set here too.
 
                     kfcustomfields.Add(localkffieldinstance);
@@ -134,12 +146,20 @@ namespace DigicertMetadataSync
                 // Converts blank fields etc and preps the data.
                 var customfieldslst = "CustomFields";
                 kfcustomfields = config.GetSection(customfieldslst).Get<List<ReadInMetadataField>>();
+                if (kfcustomfields == null)
+                {
+                    kfcustomfields = new List<ReadInMetadataField>();
+                }
             }
 
             //Adding metadata fields for the ID and the email of the requester from DigiCert.
             List<ReadInMetadataField> kfmanualfields = new List<ReadInMetadataField>();
             var manualfieldslist = "ManualFields";
             kfmanualfields = config.GetSection(manualfieldslist).Get<List<ReadInMetadataField>>();
+            if (kfmanualfields == null)
+            {
+                kfmanualfields = new List<ReadInMetadataField>();
+            }
             logger.LogDebug("Performed field conversion.");
 
             //Pulling list of existing metadata fields from Keyfactor for later comparison.
@@ -323,12 +343,15 @@ namespace DigicertMetadataSync
                                     {
                                         Dictionary<string, string> metadatapayload = new Dictionary<string, string>();
                                         metadatapayload["metadata_id"] = newfield.id.ToString();
-                                        //Update payload with data
-                                        metadatapayload["value"] = kfstoredmetadata[sublookup.DigicertFieldName];
-                                        var newserializedsyncfield = JsonConvert.SerializeObject(metadatapayload);
-                                        digicertnewfieldsrequest.AddParameter("application/json", newserializedsyncfield, ParameterType.RequestBody);
-                                        var digicertresponsenewfields = digicertnewfieldsclient.Post(digicertnewfieldsrequest);
-                                        datauploaded = true;
+                                        if (kfstoredmetadata.ContainsKey(sublookup.KeyfactorMetadataFieldName))
+                                        {
+                                            metadatapayload["value"] = kfstoredmetadata[sublookup.KeyfactorMetadataFieldName];
+                                            var newserializedsyncfield = JsonConvert.SerializeObject(metadatapayload);
+                                            digicertnewfieldsrequest.AddParameter("application/json", newserializedsyncfield, ParameterType.RequestBody);
+                                            var digicertresponsenewfields = digicertnewfieldsclient.Post(digicertnewfieldsrequest);
+                                            datauploaded = true;
+                                        }
+                                        
                                     }
                                 }
                             }

@@ -28,12 +28,12 @@ partial class DigicertSync
 
     public class ReadInMetadataField
     {
-        public string DigicertFieldName { get; set; }
-        public string KeyfactorMetadataFieldName { get; set; }
-        public string KeyfactorDescription { get; set; }
-        public string KeyfactorDataType { get; set; }
-        public string KeyfactorHint { get; set; }
-        public string KeyfactorAllowAPI { get; set; }
+        public string DigicertFieldName { get; set; } = "local_test_nullx0";
+        public string KeyfactorMetadataFieldName { get; set; } = "test_name_nullx0";
+        public string KeyfactorDescription { get; set; } = "None.";
+        public string KeyfactorDataType { get; set; } = "string";
+        public string KeyfactorHint { get; set; } = "None.";
+        public string KeyfactorAllowAPI { get; set; } = "True";
     }
 
     public class KeyfactorMetadataInstanceSendoff
