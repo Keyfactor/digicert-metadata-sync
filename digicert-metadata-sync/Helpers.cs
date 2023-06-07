@@ -70,29 +70,40 @@ partial class DigicertSync
         return Regex.Replace(str, @"\s+", "_-_");
     }
 
+    public static bool CheckMode(string mode)
+    {
+        if ((mode == "kftodc") || (mode == "dctokf")){
+            return true;
+        }
+        return false;
+    }
+
     private static List<KeyfactorMetadataInstanceSendoff> convertlisttokf(List<ReadInMetadataField> inputlist,
         string replacementcharacter)
     {
         List<KeyfactorMetadataInstanceSendoff> formattedlist = new List<KeyfactorMetadataInstanceSendoff>();
-        foreach (ReadInMetadataField input in inputlist)
+        if (inputlist.Count != 0)
         {
-            KeyfactorMetadataInstanceSendoff formatinstance = new KeyfactorMetadataInstanceSendoff();
-            if (input.KeyfactorMetadataFieldName == null || input.KeyfactorMetadataFieldName == "")
+            foreach (ReadInMetadataField input in inputlist)
             {
-                //If name is emtpy, use autocomplete.
-                formatinstance.Name = ReplaceAllWhiteSpaces(input.DigicertFieldName, replacementcharacter);
-            }
-            else
-            {
-                //Use user input preferred name.
-                formatinstance.Name = input.KeyfactorMetadataFieldName;
-            }
+                KeyfactorMetadataInstanceSendoff formatinstance = new KeyfactorMetadataInstanceSendoff();
+                if (input.KeyfactorMetadataFieldName == null || input.KeyfactorMetadataFieldName == "")
+                {
+                    //If name is emtpy, use autocomplete.
+                    formatinstance.Name = ReplaceAllWhiteSpaces(input.DigicertFieldName, replacementcharacter);
+                }
+                else
+                {
+                    //Use user input preferred name.
+                    formatinstance.Name = input.KeyfactorMetadataFieldName;
+                }
 
-            formatinstance.AllowAPI = Convert.ToBoolean(input.KeyfactorAllowAPI);
-            formatinstance.Hint = input.KeyfactorHint;
-            formatinstance.DataType = TypeMatcher(input.KeyfactorDataType);
-            formatinstance.Description = input.KeyfactorDescription;
-            formattedlist.Add(formatinstance);
+                formatinstance.AllowAPI = Convert.ToBoolean(input.KeyfactorAllowAPI);
+                formatinstance.Hint = input.KeyfactorHint;
+                formatinstance.DataType = TypeMatcher(input.KeyfactorDataType);
+                formatinstance.Description = input.KeyfactorDescription;
+                formattedlist.Add(formatinstance);
+            }
         }
 
         return formattedlist;
