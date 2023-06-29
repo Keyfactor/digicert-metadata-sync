@@ -20,24 +20,58 @@ namespace DigicertMetadataSync;
 
 // This fuction adds the fields to keyfactor.
 // It will only add new fields.
-partial class DigicertSync
+internal partial class DigicertSync
 {
-    public static int AddFieldsToKeyfactor(List<KeyfactorMetadataInstanceSendoff> inputlist,
+    public static Tuple<int, List<string>> AddFieldsToKeyfactor(List<KeyfactorMetadataInstanceSendoff> inputlist,
         List<KeyfactorMetadataInstance> existingmetadatalist, bool noexistingfields, string keyfactorusername,
         string keyfactorpassword, string keyfactorapilocation)
     {
         var addfieldstokeyfactorurl = keyfactorapilocation + "MetadataFields";
         var addfieldsclient = new RestClient();
         addfieldsclient.Authenticator = new HttpBasicAuthenticator(keyfactorusername, keyfactorpassword);
-        int totalnumberadded = 0;
-        foreach (var metadatainstance in inputlist)
-        {
-            if (noexistingfields == false)
-            {
-                var fieldquery = from existingmetadatainstance in existingmetadatalist
-                    where existingmetadatainstance.Name == metadatainstance.Name
-                    select existingmetadatainstance;
-                if (!fieldquery.Any())
+        var totalnumberadded = 0;
+        var newfields = new List<string>();
+        if (inputlist.Count != 0)
+            foreach (var metadatainstance in inputlist)
+                if (noexistingfields == false)
+                {
+                    var fieldquery = from existingmetadatainstance in existingmetadatalist
+                                     where existingmetadatainstance.Name == metadatainstance.Name
+                                     select existingmetadatainstance;
+                    // If field does not exist in Keyfactor, add it.
+                    if (!fieldquery.Any())
+                    {
+                        var addfieldrequest = new RestRequest(addfieldstokeyfactorurl);
+                        addfieldrequest.AddHeader("Content-Type", "application/json");
+                        addfieldrequest.AddHeader("Accept", "application/json");
+                        addfieldrequest.AddHeader("x-keyfactor-api-version", "1");
+                        addfieldrequest.AddHeader("x-keyfactor-requested-with", "APIClient");
+                        var serializedfield = JsonConvert.SerializeObject(metadatainstance);
+                        addfieldrequest.AddParameter("application/json", serializedfield, ParameterType.RequestBody);
+                        var metadataresponse = new RestResponse();
+                        try
+                        {
+                            metadataresponse = addfieldsclient.Post(addfieldrequest);
+                            newfields.Add(metadatainstance.Name);
+                            ++totalnumberadded;
+                        }
+                        catch (HttpRequestException e)
+                        {
+                            Console.WriteLine(metadataresponse.Content);
+                            throw e;
+                        }
+                    }
+                    else
+                    {
+                        if (fieldquery.FirstOrDefault().DataType != metadatainstance.DataType)
+                        {
+                            //Throw error if datatype included in keyfactor does not match the digicert one.
+                            var mismatchedtypes = new NotSupportedException();
+                            throw mismatchedtypes;
+                        }
+                    }
+                }
+                else
                 {
                     var addfieldrequest = new RestRequest(addfieldstokeyfactorurl);
                     addfieldrequest.AddHeader("Content-Type", "application/json");
@@ -46,7 +80,7 @@ partial class DigicertSync
                     addfieldrequest.AddHeader("x-keyfactor-requested-with", "APIClient");
                     var serializedfield = JsonConvert.SerializeObject(metadatainstance);
                     addfieldrequest.AddParameter("application/json", serializedfield, ParameterType.RequestBody);
-                    RestResponse metadataresponse = new RestResponse();
+                    var metadataresponse = new RestResponse();
                     try
                     {
                         metadataresponse = addfieldsclient.Post(addfieldrequest);
@@ -58,39 +92,9 @@ partial class DigicertSync
                         throw e;
                     }
                 }
-                else
-                {
-                    if (fieldquery.FirstOrDefault().DataType != metadatainstance.DataType)
-                    {
-                        //Throw error if datatype included in keyfactor does not match the digicert one.
-                        NotSupportedException mismatchedtypes = new NotSupportedException();
-                        throw mismatchedtypes;
-                    }
-                }
-            }
-            else
-            {
-                var addfieldrequest = new RestRequest(addfieldstokeyfactorurl);
-                addfieldrequest.AddHeader("Content-Type", "application/json");
-                addfieldrequest.AddHeader("Accept", "application/json");
-                addfieldrequest.AddHeader("x-keyfactor-api-version", "1");
-                addfieldrequest.AddHeader("x-keyfactor-requested-with", "APIClient");
-                var serializedfield = JsonConvert.SerializeObject(metadatainstance);
-                addfieldrequest.AddParameter("application/json", serializedfield, ParameterType.RequestBody);
-                RestResponse metadataresponse = new RestResponse();
-                try
-                {
-                    metadataresponse = addfieldsclient.Post(addfieldrequest);
-                    ++totalnumberadded;
-                }
-                catch (HttpRequestException e)
-                {
-                    Console.WriteLine(metadataresponse.Content);
-                    throw e;
-                }
-            }
-        }
 
-        return totalnumberadded;
+        var returnvals = new Tuple<int, List<string>>(totalnumberadded, newfields);
+
+        return returnvals;
     }
 }

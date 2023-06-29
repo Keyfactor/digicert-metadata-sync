@@ -16,17 +16,19 @@ namespace DigicertMetadataSync;
 
 internal partial class DigicertSync
 {
-    public class RootDigicertLookup
+    public class DigicertCustomFieldInstance
     {
-        public List<SearchCriterion> searchCriteriaList = new();
-
-        public string accountId { get; set; } = "x";
+        public int id { get; set; } = 999999999;
+        public string label { get; set; } = "";
+        public bool is_required { get; set; } = false;
+        public bool is_active { get; set; } = true;
+        public string data_type { get; set; } = "anything";
+        public string kf_field_name { get; set; } = "";
     }
 
-    public class SearchCriterion
+    public class DigicertMetadataUpdateInstance
     {
-        public List<string> value = new();
-        public string key { get; set; } = "serialNum";
-        public string operation { get; set; } = "EQUALS";
+        public int metadata_id { get; set; } = 999999999;
+        public string value { get; set; } = "false";
     }
 }
