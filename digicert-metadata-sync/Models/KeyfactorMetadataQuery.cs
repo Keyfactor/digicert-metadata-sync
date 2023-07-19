@@ -14,11 +14,11 @@
 
 namespace DigicertMetadataSync;
 
-partial class DigicertSync
+internal partial class DigicertSync
 {
     public class KeyfactorMetadataQuery
     {
+        public Dictionary<string, object> Metadata = new();
         public int Id { get; set; }
-        public Dictionary<string, object> Metadata = new Dictionary<string, object>();
     }
 }
