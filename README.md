@@ -4,9 +4,7 @@ A tool to automatically synchronize metadata fields and their content from DigiC
 
 #### Integration status: Production - Ready for use in production environments.
 
-## About the Keyfactor API Client
 
-This API client allows for programmatic management of Keyfactor resources.
 
 
 
