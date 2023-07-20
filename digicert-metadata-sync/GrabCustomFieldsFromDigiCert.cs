@@ -26,7 +26,6 @@ partial class DigicertSync
 {
     public static List<CustomDigicertMetadataInstance> GrabCustomFieldsFromDigiCert(string apikey)
     {
-        ILogger logger = LogHandler.GetClassLogger<DigicertSync>();
         var digicertclient = new RestClient();
         var customfieldsretrieval = "https://www.digicert.com/services/v2/account/metadata";
         var digicertrequest = new RestRequest(customfieldsretrieval);
@@ -38,7 +37,7 @@ partial class DigicertSync
         trimmeddigicertresponse = trimmeddigicertresponse.Remove(lengthofresponse - 1, 1);
         var fieldlist = JsonConvert.DeserializeObject<List<CustomDigicertMetadataInstance>>(trimmeddigicertresponse);
         Console.WriteLine("Obtained custom fields from DigiCert.");
-        logger.LogDebug("Obtained custom fields from DigiCert.");
+        _logger.Debug("Obtained custom fields from DigiCert.");
         return fieldlist;
     }
 }

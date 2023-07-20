@@ -14,9 +14,8 @@
 
 namespace DigicertMetadataSync;
 
-partial class DigicertSync
+internal partial class DigicertSync
 {
-
     public class DigicertCustomFieldInstance
     {
         public int id { get; set; } = 999999999;
@@ -30,7 +29,6 @@ partial class DigicertSync
     public class DigicertMetadataUpdateInstance
     {
         public int metadata_id { get; set; } = 999999999;
-        public string value { get; set; } = "false";    
+        public string value { get; set; } = "false";
     }
-
 }

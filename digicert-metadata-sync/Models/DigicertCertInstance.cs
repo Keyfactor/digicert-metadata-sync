@@ -13,7 +13,8 @@
 // limitations under the License.
 
 namespace DigicertMetadataSync;
-partial class DigicertSync
+
+internal partial class DigicertSync
 {
     public class DigicertCert
     {

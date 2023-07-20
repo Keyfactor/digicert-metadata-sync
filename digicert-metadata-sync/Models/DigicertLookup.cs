@@ -14,19 +14,19 @@
 
 namespace DigicertMetadataSync;
 
-partial class DigicertSync
+internal partial class DigicertSync
 {
     public class RootDigicertLookup
     {
-        public List<SearchCriterion> searchCriteriaList = new List<SearchCriterion>();
+        public List<SearchCriterion> searchCriteriaList = new();
 
         public string accountId { get; set; } = "x";
     }
 
     public class SearchCriterion
     {
+        public List<string> value = new();
         public string key { get; set; } = "serialNum";
         public string operation { get; set; } = "EQUALS";
-        public List<string> value = new();
     }
 }
