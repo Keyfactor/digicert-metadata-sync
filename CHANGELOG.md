@@ -1,3 +1,7 @@
+Version 2.0.3
+
+    Added a setting to enable or disable syncing deactivated custom fields from DigiCert.
+
 Version 2.0.2
 
     Fixed issue with additional_emails field not syncing.
