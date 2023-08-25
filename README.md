@@ -44,6 +44,8 @@ This should include the common prefix all DigiCert certs have in your Keyfactor 
 This setting enables the tool to import all of the custom metadata fields included in DigiCert and sync all of their data.
 - <b>ReplaceDigicertWhiteSpaceCharacterInName</b>  
 In case the ImportAllCustomDigicertFields setting is used, this is necessary to for metadata field label conversion. DigiCert supports spaces in labels and Keyfactor does not, so this replaces the spaces in the name with your character sequence of choice.
+- <b>ImportDataForDeactivatedDigiCertFields</b>  
+If this is enabled, custom metadata fields that were deactivated in DigiCert will also be synced, and the data stored in these fields in certificates will be too.
 
 ### manualfields.json settings
 This file is used to specify which metadata fields should be synced up.
