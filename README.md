@@ -6,14 +6,11 @@ A tool to automatically synchronize metadata fields and their content from DigiC
 
 
 
-
-
 ## Support for Digicert Metadata Sync
 
 Digicert Metadata Sync is open source and there is **no SLA** for this tool/library/client. Keyfactor will address issues as resources become available. Keyfactor customers may request escalation by opening up a support ticket through their Keyfactor representative.
 
 ###### To report a problem or suggest a new feature, use the **[Issues](../../issues)** tab. If you want to contribute actual bug fixes or proposed enhancements, use the **[Pull requests](../../pulls)** tab.
-
 
 
 
@@ -44,6 +41,8 @@ This should include the common prefix all DigiCert certs have in your Keyfactor 
 This setting enables the tool to import all of the custom metadata fields included in DigiCert and sync all of their data.
 - <b>ReplaceDigicertWhiteSpaceCharacterInName</b>  
 In case the ImportAllCustomDigicertFields setting is used, this is necessary to for metadata field label conversion. DigiCert supports spaces in labels and Keyfactor does not, so this replaces the spaces in the name with your character sequence of choice.
+- <b>ImportDataForDeactivatedDigiCertFields</b>  
+If this is enabled, custom metadata fields that were deactivated in DigiCert will also be synced, and the data stored in these fields in certificates will be too.
 
 ### manualfields.json settings
 This file is used to specify which metadata fields should be synced up.
