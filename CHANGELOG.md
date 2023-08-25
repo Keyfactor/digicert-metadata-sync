@@ -1,4 +1,4 @@
-Version 2.0.3
+Version 2.0.3  
 
     Added a setting to enable or disable syncing deactivated custom fields from DigiCert.
 
