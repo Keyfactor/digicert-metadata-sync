@@ -11,6 +11,7 @@ using NLog;
 using RestSharp;
 using RestSharp.Authenticators;
 using ConfigurationManager = System.Configuration.ConfigurationManager;
+//using Keyfactor.Logging;
 
 namespace DigicertMetadataSync;
 
@@ -26,6 +27,7 @@ internal partial class DigicertSync
         var digicertapikeytopperm = ConfigurationManager.AppSettings.Get("DigicertAPIKeyTopPerm");
         var keyfactorusername = ConfigurationManager.AppSettings.Get("KeyfactorDomainAndUser");
         var keyfactorpassword = ConfigurationManager.AppSettings.Get("KeyfactorPassword");
+        var importdeactivated = Convert.ToBoolean(ConfigurationManager.AppSettings.Get("ImportDataForDeactivatedDigiCertFields"));
         var replacementcharacter = ConfigurationManager.AppSettings.Get("ReplaceDigicertWhiteSpaceCharacterInName");
         var importallcustomdigicertfields =
             Convert.ToBoolean(ConfigurationManager.AppSettings.Get("ImportAllCustomDigicertFields"));
@@ -75,7 +77,7 @@ internal partial class DigicertSync
         _logger.Debug("Got list of custom fields from Keyfactor.");
 
         //Getting list of custom metadata fields on DigiCert
-        var customdigicertmetadatafieldlist = GrabCustomFieldsFromDigiCert(digicertapikey);
+        var customdigicertmetadatafieldlist = GrabCustomFieldsFromDigiCert(digicertapikey, importdeactivated);
 
         //Convert DigiCert custom fields to Keyfactor appropriate ones
         //This depends on whether the setting to import all fields was enabled or not
@@ -253,11 +255,11 @@ internal partial class DigicertSync
 
             // Grabbing the list again from digicert, populating ids for new ones 
             //Getting list of custom metadata fields on DigiCert
-            var updatedmetadatafieldlist = GrabCustomFieldsFromDigiCert(digicertapikey);
+            var updatedmetadatafieldlist = GrabCustomFieldsFromDigiCert(digicertapikey, importdeactivated);
             foreach (var subitem in updatedmetadatafieldlist)
-                foreach (var fulllistitem in fullcustomdgfieldlist)
-                    if (subitem.label == fulllistitem.label)
-                        fulllistitem.id = subitem.id;
+            foreach (var fulllistitem in fullcustomdgfieldlist)
+                if (subitem.label == fulllistitem.label)
+                    fulllistitem.id = subitem.id;
 
             var totalcertsprocessed = 0;
             var numcertsdatauploaded = 0;
@@ -389,9 +391,9 @@ internal partial class DigicertSync
                 //Find matching certificate via Keyfactor ID
                 var test = digicertcertinstance["certificate"]["serial_number"].ToString().ToUpper();
                 var query = from kfcertlocal in certlist
-                            where kfcertlocal.SerialNumber ==
-                                  digicertcertinstance["certificate"]["serial_number"].ToString().ToUpper()
-                            select kfcertlocal;
+                    where kfcertlocal.SerialNumber ==
+                          digicertcertinstance["certificate"]["serial_number"].ToString().ToUpper()
+                    select kfcertlocal;
                 var certificateid = query.FirstOrDefault().Id;
 
 
@@ -412,9 +414,9 @@ internal partial class DigicertSync
                         {
                             //Using custom names
                             var metadatanamequery = from customfieldinstance in kfcustomfields
-                                                    where customfieldinstance.DigicertFieldName ==
-                                                          metadatafieldinstance["label"]
-                                                    select customfieldinstance;
+                                where customfieldinstance.DigicertFieldName ==
+                                      metadatafieldinstance["label"]
+                                select customfieldinstance;
                             if (metadatanamequery.FirstOrDefault() != null)
                                 payloadforkf.Metadata[metadatanamequery.FirstOrDefault().DigicertFieldName] =
                                     metadatafieldinstance["value"];
