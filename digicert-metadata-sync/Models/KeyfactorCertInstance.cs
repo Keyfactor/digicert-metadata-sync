@@ -66,6 +66,7 @@ internal partial class DigicertSync
 
     public class Metadata
     {
+
     }
 
     public class Detailedkeyusage

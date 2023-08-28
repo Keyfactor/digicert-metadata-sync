@@ -15,18 +15,27 @@ Digicert Metadata Sync is open source and there is **no SLA** for this tool/libr
 
 
 ## Overview
-This tool primarily sets up metadata fields in Keyfactor for the custom metadata fields in DigiCert, which are named as such, but can also setup metadata fields in Keyfactor for non-custom fields available in DigiCert and unavailable in Keyfactor by default,   such as the Digicert Cert ID and the Organization contact.  These fields are referred to as manual fields in the context of this tool. After setting up these fields, the tool proceeds to update the contents of these fields. This tool only adds metadata to certificates that have already been imported into Keyfactor. Additionally, this tool requires a properly installed and functioning AnyGateway configured to work with Keyfactor and Digicert.
+This tool primarily sets up metadata fields in Keyfactor for the custom metadata fields in DigiCert, which are named as such, but can also setup metadata fields in Keyfactor for non-custom fields available in DigiCert and unavailable in Keyfactor by default,   such as the Digicert Cert ID and the Organization contact.  These fields are referred to as manual fields in the context of this tool. After setting up these fields, the tool proceeds to update the contents of these fields. This tool only adds metadata to certificates that have already been imported into Keyfactor. Additionally, this tool requires a properly installed and functioning AnyGateway configured to work with Keyfactor and Digicert. The latest update allows for syncronization of custom field contents from Keyfactor to DigiCert. New fields are created in Keyfactor and DigiCert to accomodate for this.
 
 ## Installation and Usage
 The tool comes as a Windows executable. The tool performs synchronization each time its run. For the tool to run automatically, it needs to be added as a scheduled process using Windows. The advised interval for running it is once per week. The files DigicertMetadataSync.dll.config and manualfields.json need to be present in the same directory as the tool for it to run correctly. The specific location from which the tool is ran does not matter, but it needs to have access to both the Keyfactor API endpoint as well as  Digicert, and appropriate permissions for access to the configuration files. 
 An explanation for the settings found in these files is given below. 
 
+## Command Line Arguments
+One of these two arguments needs to be used for the tool to run.
+- <b>"kftodc"</b>  
+Syncronizes the contents of custom fields listed in manualfields.json from Keyfactor to DigiCert. If the fields in manualfields.json do not exist in Keyfactor or DigiCert, they are created first. Example: ```.\DigicertMetadataSync.exe kftodc```
+- <b>"dctokf"</b>  
+Syncronizes the contents of both custom and non-custom fields from DigiCert to Keyfactor. The fields are listed in manualfields.json, and are created if necessary.
+Example: ```.\DigicertMetadataSync.exe dctokf```
 
 ## Settings
 The settings currently present in these files are shown as an example and need to be configured for your specific situation.
 ### DigicertMetadataSync.dll.config settings
 - <b>DigicertAPIKey</b>  
-Standard DigiCert API access key 
+Standard DigiCert API access key.
+- <b>DigicertAPIKeyTopPerm</b>  
+DigiCert API access key with restrictions set to "None" - <b>required for sync from Keyfactor to DigiCert</b>. 
 - <b>KeyfactorDomainAndUser</b>  
 Same credential as used when logging into Keyfactor Command. A different set of credentials can be used provided they have adequate access permissions.
 - <b>KeyfactorPassword</b>  
@@ -74,4 +83,4 @@ Allows API management of this metadata field in Keyfactor. Should be set to true
 
 ### Logging
 Logging functionality can be configured via entering either "Debug" or "Trace" into the value of `<variable name="minLogLevel" value="Debug" />` in NLog.config.
-
+=======

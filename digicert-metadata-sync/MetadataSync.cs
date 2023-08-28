@@ -240,6 +240,7 @@ internal partial class DigicertSync
             //Add fields that don't exist on DigiCert to Digicert 
             _logger.Trace("Adding following fields to DigiCert: {0}", JsonConvert.SerializeObject(newcustomfieldsfordg));
             foreach (var newdgfield in newcustomfieldsfordg)
+
             {
                 var digicertapilocation = "https://www.digicert.com/services/v2/account/metadata";
                 var digicertnewfieldsclient = new RestClient();
@@ -251,7 +252,6 @@ internal partial class DigicertSync
                     ParameterType.RequestBody);
                 var digicertresponsenewfields = digicertnewfieldsclient.Post(digicertnewfieldsrequest);
             }
-
 
             // Grabbing the list again from digicert, populating ids for new ones 
             //Getting list of custom metadata fields on DigiCert
@@ -376,7 +376,6 @@ internal partial class DigicertSync
                     _logger.Trace("Pulled and storing following cert from digicert: {0}",
                         digicertlookupresponse.Content);
                 }
-            }
 
             Console.WriteLine("Pulled DigiCert matching DigiCert cert data.");
             _logger.Debug("Pulled DigiCert matching DigiCert cert data.");
@@ -395,10 +394,8 @@ internal partial class DigicertSync
                           digicertcertinstance["certificate"]["serial_number"].ToString().ToUpper()
                     select kfcertlocal;
                 var certificateid = query.FirstOrDefault().Id;
+                }
 
-
-                var payloadforkf = new KeyfactorMetadataQuery();
-                payloadforkf.Id = certificateid;
 
                 if (digicertcertinstance["custom_fields"] != null)
                     // Getting custom metadata field values
@@ -410,7 +407,45 @@ internal partial class DigicertSync
                                 replacementcharacter);
                             payloadforkf.Metadata[metadatanamefield] = metadatafieldinstance["value"];
                         }
-                        else
+                    }
+                   
+                }
+
+                var totalcertsprocessed = 0;
+                var numcertsdatauploaded = 0;
+                
+                // Pushing the data to DigiCert
+                var certlist2 = JsonConvert.DeserializeObject<dynamic>(rawresponse, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+                foreach (var cert in certlist2)
+                {
+
+                    Dictionary<string, string> kfstoredmetadata = cert["Metadata"].ToObject<Dictionary<string, string>>();
+
+                    bool certhascustomfields = false;
+                    foreach (var checkfield in fullcustomdgfieldlist)
+                    {
+                        if (kfstoredmetadata.ContainsKey(checkfield.kf_field_name))
+                        {
+                            certhascustomfields = true;
+                        }
+                    }
+
+                    if (certhascustomfields){
+                        var kfserialnumber = cert["SerialNumber"].ToString();
+
+                        var digicertnewlookupurl = "https://www.digicert.com/services/v2/order/certificate" + "?filters[serial_number]=" + kfserialnumber;
+
+                        var newbodytemplate = new RootDigicertLookup();
+                        var newsearchcriterioninstance = new SearchCriterion();
+                        newbodytemplate.searchCriteriaList.Add(newsearchcriterioninstance);
+                        var lookupnewrequest = new RestRequest(digicertnewlookupurl);
+                        lookupnewrequest.AddHeader("Content-Type", "application/json");
+                        lookupnewrequest.AddHeader("X-DC-DEVKEY", digicertapikey);
+                        var digicertnewlookupresponse = client.Execute(lookupnewrequest);
+                        var newparseddigicertresponse = JsonConvert.DeserializeObject<dynamic>(digicertnewlookupresponse.Content);
+
+
+                        if (newparseddigicertresponse["page"]["total"] != 0)
                         {
                             //Using custom names
                             var metadatanamequery = from customfieldinstance in kfcustomfields
@@ -420,7 +455,17 @@ internal partial class DigicertSync
                             if (metadatanamequery.FirstOrDefault() != null)
                                 payloadforkf.Metadata[metadatanamequery.FirstOrDefault().DigicertFieldName] =
                                     metadatafieldinstance["value"];
+
                         }
+                    }
+                    totalcertsprocessed += 1;
+                }
+                Console.WriteLine($"Metadata sync from Keyfactor to DigiCert complete. Number of certs processed: {totalcertsprocessed.ToString()}");
+                Console.WriteLine($"Certs that had their metadata synced: {numcertsdatauploaded.ToString()}");
+                logger.LogDebug($"Metadata sync from Keyfactor to DigiCert complete. Number of certs processed: {totalcertsprocessed.ToString()}");
+                logger.LogDebug($"Certs that had their metadata synced: {numcertsdatauploaded.ToString()}");
+
+            }
 
                 var flattenedcert = Flatten(digicertcertinstance);
                 //Getting manually selected metadata field values (not custom in DigiCert)
