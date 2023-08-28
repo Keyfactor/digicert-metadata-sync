@@ -4,10 +4,6 @@ A tool to automatically synchronize metadata fields and their content from DigiC
 
 #### Integration status: Production - Ready for use in production environments.
 
-## About the Keyfactor API Client
-
-This API client allows for programmatic management of Keyfactor resources.
-
 
 
 ## Support for Digicert Metadata Sync
@@ -20,12 +16,11 @@ Digicert Metadata Sync is open source and there is **no SLA** for this tool/libr
 
 
 
-
 ## Overview
 This tool primarily sets up metadata fields in Keyfactor for the custom metadata fields in DigiCert, which are named as such, but can also setup metadata fields in Keyfactor for non-custom fields available in DigiCert and unavailable in Keyfactor by default,   such as the Digicert Cert ID and the Organization contact.  These fields are referred to as manual fields in the context of this tool. After setting up these fields, the tool proceeds to update the contents of these fields. This tool only adds metadata to certificates that have already been imported into Keyfactor. Additionally, this tool requires a properly installed and functioning AnyGateway configured to work with Keyfactor and Digicert. The latest update allows for syncronization of custom field contents from Keyfactor to DigiCert. New fields are created in Keyfactor and DigiCert to accomodate for this.
 
 ## Installation and Usage
-The tool comes as a Windows executable. The tool performs synchronization each time its run. For the tool to run automatically, it needs to be added as a scheduled process using Windows. The advised interval for running it is once per week. The files App.config and manualfields.json need to be present in the same directory as the tool for it to run correctly. The specific location from which the tool is ran does not matter, but it needs to have access to both the Keyfactor API endpoint as well as  Digicert, and appropriate permissions for access to the configuration files. 
+The tool comes as a Windows executable. The tool performs synchronization each time its run. For the tool to run automatically, it needs to be added as a scheduled process using Windows. The advised interval for running it is once per week. The files DigicertMetadataSync.dll.config and manualfields.json need to be present in the same directory as the tool for it to run correctly. The specific location from which the tool is ran does not matter, but it needs to have access to both the Keyfactor API endpoint as well as  Digicert, and appropriate permissions for access to the configuration files. 
 An explanation for the settings found in these files is given below. 
 
 ## Command Line Arguments
@@ -38,7 +33,7 @@ Example: ```.\DigicertMetadataSync.exe dctokf```
 
 ## Settings
 The settings currently present in these files are shown as an example and need to be configured for your specific situation.
-### app.config settings
+### DigicertMetadataSync.dll.config settings
 - <b>DigicertAPIKey</b>  
 Standard DigiCert API access key.
 - <b>DigicertAPIKeyTopPerm</b>  
@@ -57,6 +52,8 @@ This should include the common prefix all DigiCert certs have in your Keyfactor 
 This setting enables the tool to import all of the custom metadata fields included in DigiCert and sync all of their data.
 - <b>ReplaceDigicertWhiteSpaceCharacterInName</b>  
 In case the ImportAllCustomDigicertFields setting is used, this is necessary to for metadata field label conversion. DigiCert supports spaces in labels and Keyfactor does not, so this replaces the spaces in the name with your character sequence of choice.
+- <b>ImportDataForDeactivatedDigiCertFields</b>  
+If this is enabled, custom metadata fields that were deactivated in DigiCert will also be synced, and the data stored in these fields in certificates will be too.
 
 ### manualfields.json settings
 This file is used to specify which metadata fields should be synced up.
@@ -86,4 +83,6 @@ String to be input into Keyfactor as the metadata field hint.
 - <b>KeyfactorAllowAPI</b>  
 Allows API management of this metadata field in Keyfactor. Should be set to true for continuous synchronization with this tool.
 
+### Logging
+Logging functionality can be configured via entering either "Debug" or "Trace" into the value of `<variable name="minLogLevel" value="Debug" />` in NLog.config.
 

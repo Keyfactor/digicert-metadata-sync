@@ -14,7 +14,7 @@
 
 namespace DigicertMetadataSync;
 
-partial class DigicertSync
+internal partial class DigicertSync
 {
     //This stores all of the data keyfactor API returns when asked for metadata field details.
     public class KeyfactorMetadataInstance

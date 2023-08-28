@@ -15,6 +15,7 @@
 using Keyfactor.Logging;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using NLog.Time;
 using RestSharp;
 using RestSharp.Authenticators;
 
@@ -24,7 +25,7 @@ namespace DigicertMetadataSync;
 // It will only add new fields.
 partial class DigicertSync
 {
-    public static List<CustomDigicertMetadataInstance> GrabCustomFieldsFromDigiCert(string apikey)
+    public static List<CustomDigicertMetadataInstance> GrabCustomFieldsFromDigiCert(string apikey, bool importdeactivated)
     {
         ILogger logger = LogHandler.GetClassLogger<DigicertSync>();
         var digicertclient = new RestClient();
@@ -37,6 +38,10 @@ partial class DigicertSync
         int lengthofresponse = trimmeddigicertresponse.Length;
         trimmeddigicertresponse = trimmeddigicertresponse.Remove(lengthofresponse - 1, 1);
         var fieldlist = JsonConvert.DeserializeObject<List<CustomDigicertMetadataInstance>>(trimmeddigicertresponse);
+        if (importdeactivated == false)
+        {
+            fieldlist.RemoveAll(unit => unit.is_active == false);
+        }
         Console.WriteLine("Obtained custom fields from DigiCert.");
         logger.LogDebug("Obtained custom fields from DigiCert.");
         return fieldlist;
