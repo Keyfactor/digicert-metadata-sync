@@ -17,20 +17,10 @@ namespace DigicertMetadataSync;
 partial class DigicertSync
 {
 
-    public class DigicertCustomFieldInstance
+    public class CharDBItem
     {
-        public int id { get; set; } = 999999999;
-        public string label { get; set; } = "";
-        public bool is_required { get; set; } = false;
-        public bool is_active { get; set; } = true;
-        public string data_type { get; set; } = "anything";
-        public string kf_field_name { get; set; } = "";
-    }
-
-    public class DigicertMetadataUpdateInstance
-    {
-        public int metadata_id { get; set; } = 999999999;
-        public string value { get; set; } = "false";    
+        public string character;
+        public string replacementcharacter;
     }
 
 }

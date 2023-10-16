@@ -14,7 +14,7 @@
 
 namespace DigicertMetadataSync;
 
-internal partial class DigicertSync
+partial class DigicertSync
 {
     public class CustomDigicertMetadataInstance
     {
@@ -34,6 +34,7 @@ internal partial class DigicertSync
         public string KeyfactorDataType { get; set; } = "string";
         public string KeyfactorHint { get; set; } = "None.";
         public string KeyfactorAllowAPI { get; set; } = "True";
+        public string FieldType { get; set; } = "manual/custom";
     }
 
     public class KeyfactorMetadataInstanceSendoff

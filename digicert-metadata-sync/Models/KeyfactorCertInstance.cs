@@ -14,7 +14,7 @@
 
 namespace DigicertMetadataSync;
 
-internal partial class DigicertSync
+partial class DigicertSync
 {
     public class KeyfactorCert
     {
