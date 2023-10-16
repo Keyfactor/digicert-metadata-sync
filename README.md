@@ -50,6 +50,7 @@ This should include the Keyfactor API endpoint, of the format https://domain.com
 This should include the common prefix all DigiCert certs have in your Keyfactor instance. For example, "DigiCert"
 - <b>ImportAllCustomDigicertFields</b>  
 This setting enables the tool to import all of the custom metadata fields included in DigiCert and sync all of their data.
+
 During the first run, the tool will scan the custom fields it will be importing for characters that are not supported in Keyfactor Metadata field names.
 Each unsupported character will be shown in a file named "replacechar.json" and its replacement can be selected. If the values in the file are not populated, the tool will not run a second time.
 - <b>ImportDataForDeactivatedDigiCertFields</b>  
