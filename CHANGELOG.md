@@ -1,3 +1,8 @@
+Version 2.1.0
+
+    Added a system that gathers all non-Keyfactor friendly characters and allows the user to configure an alternative.
+    Added pagination based batch processing, memory consumption has been drastically reduced.
+
 Version 2.0.3  
 
     Added a setting to enable or disable syncing deactivated custom fields from DigiCert.
