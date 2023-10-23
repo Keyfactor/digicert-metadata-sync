@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+using System.Collections.Generic;
+
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 
@@ -54,9 +57,13 @@ internal partial class DigicertSync
         return null;
     }
 
-    public static string ReplaceAllWhiteSpaces(string str, string replacement)
+    public static string ReplaceAllBannedCharacters(string input, List<CharDBItem>allBannedChars)
     {
-        return Regex.Replace(str, @"\s+", "_-_");
+        foreach (CharDBItem item in allBannedChars)
+        {
+            input = input.Replace(item.character, item.replacementcharacter);
+        }
+        return input;
     }
 
     public static bool CheckMode(string mode)
@@ -65,17 +72,18 @@ internal partial class DigicertSync
         return false;
     }
 
-    private static List<KeyfactorMetadataInstanceSendoff> convertlisttokf(List<ReadInMetadataField> inputlist,
-        string replacementcharacter)
+    private static List<KeyfactorMetadataInstanceSendoff> convertlisttokf(List<ReadInMetadataField> inputlist, List<CharDBItem> allBannedChars, bool importallcustomfields)
     {
         var formattedlist = new List<KeyfactorMetadataInstanceSendoff>();
         if (inputlist.Count != 0)
             foreach (var input in inputlist)
             {
                 var formatinstance = new KeyfactorMetadataInstanceSendoff();
-                if (input.KeyfactorMetadataFieldName == null || input.KeyfactorMetadataFieldName == "")
-                    //If name is emtpy, use autocomplete.
-                    formatinstance.Name = ReplaceAllWhiteSpaces(input.DigicertFieldName, replacementcharacter);
+
+                if (input.KeyfactorMetadataFieldName == null || input.KeyfactorMetadataFieldName == "" || input.FieldType == "Custom")
+                    //If name is empty, clean up the characters.
+                    formatinstance.Name = ReplaceAllBannedCharacters(input.DigicertFieldName, allBannedChars);
+
                 else
                     //Use user input preferred name.
                     formatinstance.Name = input.KeyfactorMetadataFieldName;
@@ -86,6 +94,9 @@ internal partial class DigicertSync
                 formatinstance.Description = input.KeyfactorDescription;
                 formattedlist.Add(formatinstance);
             }
+
+
+
         return formattedlist;
     }
 
