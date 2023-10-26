@@ -6,5 +6,6 @@
   "description": "A tool to automatically synchronize metadata fields and their content from DigiCert to Keyfactor. This utility is indented to be used in conjunction with the Digicert AnyGateway and adds to the information already synchronized by the gateway.",
   "link_github": true,
   "update_catalog": true,
-  "support_level": "kf-community"
+  "support_level": "kf-community",
+  "release_dir": "digicert-metadata-sync\\bin\\Release\\net6.0 "
 }
