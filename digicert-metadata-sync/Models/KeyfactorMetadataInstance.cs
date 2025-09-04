@@ -14,23 +14,25 @@
 
 namespace DigicertMetadataSync;
 
-internal partial class DigicertSync
+// using Newtonsoft.Json;  // already present in your project
+
+public class KeyfactorMetadataInstance
 {
-    //This stores all of the data keyfactor API returns when asked for metadata field details.
-    public class KeyfactorMetadataInstance
-    {
-        public int Id { get; set; }
-        public string Name { get; set; }
-        public string Description { get; set; }
-        public int DataType { get; set; }
-        public string Hint { get; set; }
-        public string Validation { get; set; }
-        public int Enrollment { get; set; }
-        public string Message { get; set; }
-        public string Options { get; set; }
-        public string DefaultValue { get; set; }
-        public bool AllowAPI { get; set; }
-        public bool ExplicitUpdate { get; set; }
-        public int DisplayOrder { get; set; }
-    }
+    public string Name { get; set; } = "";
+    public string Description { get; set; } = "No description provided.";
+    public int DataType { get; set; } = 1; // 1=String, 2=Integer, 3=Date, 4=Boolean, 5=Multiple Choice, 6=Big Text
+    public string Hint { get; set; } = "";
+
+    // (keep these if you use them)
+    public string Validation { get; set; } = "";
+    public int Enrollment { get; set; } = 0; // 0 Optional, 1 Required, 2 Hidden
+    public string Message { get; set; } = "";
+
+    // IMPORTANT: Options is always a CSV string (never an array)
+    public string Options { get; set; } = "";
+
+    public string DefaultValue { get; set; } = "";
+
+    // Deprecated but harmless if present
+    public bool AllowAPI { get; set; } = true;
 }

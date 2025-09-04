@@ -13,7 +13,6 @@
 // limitations under the License.
 
 using System.Text.RegularExpressions;
-using Newtonsoft.Json.Linq;
 
 namespace DigicertMetadataSync;
 
@@ -21,42 +20,37 @@ internal partial class DigicertSync
 {
     public static List<CharDBItem> BannedCharacterParse(string input)
     {
-        string pattern = "[a-zA-Z0-9-_]";
+        var pattern = "[a-zA-Z0-9-_]";
 
-        List<CharDBItem> bannedChars = new List<CharDBItem>();
+        var bannedChars = new List<CharDBItem>();
 
-        foreach (char c in input)
-        {
+        foreach (var c in input)
             if (!Regex.IsMatch(c.ToString(), pattern))
             {
-                CharDBItem localitem = new CharDBItem();
+                var localitem = new CharDBItem();
                 localitem.character = c.ToString();
                 localitem.replacementcharacter = "null";
                 bannedChars.Add(localitem);
             }
-        }
 
         if (bannedChars.Count > 0)
-        {
             Console.WriteLine("The field name " + input + " contains the following invalid characters: " +
                               string.Join("", bannedChars.Select(item => item.character)));
-        }
         else
-        {
             Console.WriteLine("The field name " + input + " is valid.");
-        }
 
         return bannedChars;
     }
 
-    public static void CheckForChars(List<ReadInMetadataField> input, List<CharDBItem> allBannedChars, bool restartandconfigrequired)
+    public static void CheckForChars(List<ReadInMetadataField> input, List<CharDBItem> allBannedChars,
+        bool restartandconfigrequired)
     {
         foreach (var dgfield in input)
         {
-            List<CharDBItem> newChars = BannedCharacterParse(dgfield.DigicertFieldName);
+            var newChars = BannedCharacterParse(dgfield.DigicertFieldName);
             foreach (var newchar in newChars)
             {
-                bool exists = allBannedChars.Any(allcharchar => allcharchar.character == newchar.character);
+                var exists = allBannedChars.Any(allcharchar => allcharchar.character == newchar.character);
                 if (!exists)
                 {
                     allBannedChars.Add(newchar);

@@ -14,7 +14,6 @@
 
 using Newtonsoft.Json;
 using RestSharp;
-using RestSharp.Authenticators;
 
 namespace DigicertMetadataSync;
 
@@ -24,11 +23,9 @@ internal partial class DigicertSync
 {
     public static Tuple<int, List<string>> AddFieldsToKeyfactor(List<KeyfactorMetadataInstanceSendoff> inputlist,
         List<KeyfactorMetadataInstance> existingmetadatalist, bool noexistingfields, string keyfactorusername,
-        string keyfactorpassword, string keyfactorapilocation)
+        string keyfactorpassword, string keyfactorapilocation, RestClient kfClient)
     {
         var addfieldstokeyfactorurl = keyfactorapilocation + "MetadataFields";
-        var addfieldsclient = new RestClient();
-        addfieldsclient.Authenticator = new HttpBasicAuthenticator(keyfactorusername, keyfactorpassword);
         var totalnumberadded = 0;
         var newfields = new List<string>();
         if (inputlist.Count != 0)
@@ -36,11 +33,25 @@ internal partial class DigicertSync
                 if (noexistingfields == false)
                 {
                     var fieldquery = from existingmetadatainstance in existingmetadatalist
-                                     where existingmetadatainstance.Name == metadatainstance.Name
-                                     select existingmetadatainstance;
+                        where existingmetadatainstance.Name == metadatainstance.Name
+                        select existingmetadatainstance;
                     // If field does not exist in Keyfactor, add it.
                     if (!fieldquery.Any())
                     {
+                        // Ensure DisplayOrder is set and Options are in the expected format per latest API.
+                        try
+                        {
+                            // API expects array for multiple choice; make sure it's not null.
+
+                            // Ensure Options is a string (always present)
+                            if (metadatainstance.Options == null)
+                                metadatainstance.Options = string.Empty;
+                        }
+                        catch
+                        {
+                            /* non-fatal; continue with best effort */
+                        }
+
                         var addfieldrequest = new RestRequest(addfieldstokeyfactorurl);
                         addfieldrequest.AddHeader("Content-Type", "application/json");
                         addfieldrequest.AddHeader("Accept", "application/json");
@@ -49,17 +60,30 @@ internal partial class DigicertSync
                         var serializedfield = JsonConvert.SerializeObject(metadatainstance);
                         addfieldrequest.AddParameter("application/json", serializedfield, ParameterType.RequestBody);
                         var metadataresponse = new RestResponse();
-                        try
+                        GlobalRetryPolicy.RetryPolicy.Execute(() =>
                         {
-                            metadataresponse = addfieldsclient.Post(addfieldrequest);
-                            newfields.Add(metadatainstance.Name);
-                            ++totalnumberadded;
-                        }
-                        catch (HttpRequestException e)
-                        {
-                            Console.WriteLine(metadataresponse.Content);
-                            throw e;
-                        }
+                            try
+                            {
+                                metadataresponse = kfClient.Post(addfieldrequest);
+                                ;
+                                if (!metadataresponse.IsSuccessful)
+                                {
+                                    var msg = "Something went wrong while adding field " + metadatainstance.Name +
+                                              " to Keyfactor.";
+                                    _logger.Error(msg);
+                                    throw new CustomException(msg, new Exception("Request failed."));
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.Error($"Unexpected error: {ex}");
+                                throw;
+                            }
+
+                            _logger.Trace("Added field {0} to Keyfactor.", metadatainstance.Name);
+                        });
+                        newfields.Add(metadatainstance.Name);
+                        ++totalnumberadded;
                     }
                     else
                     {
@@ -81,16 +105,30 @@ internal partial class DigicertSync
                     var serializedfield = JsonConvert.SerializeObject(metadatainstance);
                     addfieldrequest.AddParameter("application/json", serializedfield, ParameterType.RequestBody);
                     var metadataresponse = new RestResponse();
-                    try
+
+                    GlobalRetryPolicy.RetryPolicy.Execute(() =>
                     {
-                        metadataresponse = addfieldsclient.Post(addfieldrequest);
-                        ++totalnumberadded;
-                    }
-                    catch (HttpRequestException e)
-                    {
-                        Console.WriteLine(metadataresponse.Content);
-                        throw e;
-                    }
+                        try
+                        {
+                            metadataresponse = kfClient.Post(addfieldrequest);
+                            ;
+                            if (!metadataresponse.IsSuccessful)
+                            {
+                                var msg = "Something went wrong while adding field " + metadatainstance.Name +
+                                          " to Keyfactor.";
+                                _logger.Error(msg);
+                                throw new CustomException(msg, new Exception("Request failed."));
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Error($"Unexpected error: {ex}");
+                            throw;
+                        }
+
+                        _logger.Trace("Added field {0} to Keyfactor.", metadatainstance.Name);
+                    });
+                    ++totalnumberadded;
                 }
 
         var returnvals = new Tuple<int, List<string>>(totalnumberadded, newfields);

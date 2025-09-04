@@ -26,26 +26,50 @@ internal partial class DigicertSync
         public string data_type { get; set; }
     }
 
+
+    // Add or replace with this fuller version
     public class ReadInMetadataField
     {
         public string DigicertFieldName { get; set; } = "local_test_nullx0";
         public string KeyfactorMetadataFieldName { get; set; } = "test_name_nullx0";
         public string KeyfactorDescription { get; set; } = "None.";
-        public string KeyfactorDataType { get; set; } = "string";
-        public string KeyfactorHint { get; set; } = "None.";
+
+        public string KeyfactorDataType { get; set; } =
+            "String"; // String, Integer, Date, Boolean, Multiple Choice, Big Text
+
+        public string KeyfactorHint { get; set; } = "";
         public string KeyfactorAllowAPI { get; set; } = "True";
-        public string FieldType { get; set; } = "manual/custom";
+
+        // NEW: keep config explicit and self-contained
+        public string KeyfactorValidation { get; set; } = ""; // regex (String fields only)
+        public string KeyfactorMessage { get; set; } = ""; // message for failed regex
+        public string KeyfactorEnrollment { get; set; } = "Optional"; // Optional | Required | Hidden
+        public List<string> KeyfactorOptions { get; set; } = new(); // Multiple Choice values
+        public string KeyfactorDefaultValue { get; set; } = ""; // default value
+        public int? KeyfactorDisplayOrder { get; set; } = null; // if null, we’ll set later
+        public string FieldType { get; set; } = "manual/custom"; // existing behavior
     }
+
+    // using Newtonsoft.Json;  // already present in your project
 
     public class KeyfactorMetadataInstanceSendoff
     {
         public string Name { get; set; } = "";
-
         public string Description { get; set; } = "No description provided.";
-
-        //Default field type is set to 1 for Keyfactor - string
-        public int DataType { get; set; } = 1;
+        public int DataType { get; set; } = 1; // 1=String, 2=Integer, 3=Date, 4=Boolean, 5=Multiple Choice, 6=Big Text
         public string Hint { get; set; } = "";
+
+        // (keep these if you use them)
+        public string Validation { get; set; } = "";
+        public int Enrollment { get; set; } = 0; // 0 Optional, 1 Required, 2 Hidden
+        public string Message { get; set; } = "";
+
+        // IMPORTANT: Options is always a CSV string (never an array)
+        public string Options { get; set; } = "";
+
+        public string DefaultValue { get; set; } = "";
+
+        // Deprecated but harmless if present
         public bool AllowAPI { get; set; } = true;
     }
 }
