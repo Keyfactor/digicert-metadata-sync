@@ -45,6 +45,15 @@ Before running, configure **`DigicertMetadataSync.dll.config`** and **`manualfie
 
 ## Settings
 
+### Command Line Arguments
+One of these two arguments needs to be used for the tool to run.
+
+- **"kftodc"**
+Syncronizes the contents of custom fields listed in manualfields.json from Keyfactor to DigiCert. If the fields in manualfields.json do not exist in Keyfactor or DigiCert, they are created first. Example: `.\DigicertMetadataSync.exe kftodc`
+
+- **"dctokf"**
+Syncronizes the contents of both custom and non-custom fields from DigiCert to Keyfactor. The fields are listed in manualfields.json, and are created if necessary. Example: `.\DigicertMetadataSync.exe dctokf`
+
 ### `DigicertMetadataSync.dll.config` keys
 - **`DigicertAPIKey`**  
   Your DigiCert API Key with **API key restrictions** set to **Orders, Domains and Organizations".
@@ -74,8 +83,7 @@ Before running, configure **`DigicertMetadataSync.dll.config`** and **`manualfie
   When `ImportAllCustomDigicertFields=true`, DigiCert labels that contain spaces will be converted to Keyfactor‑safe names using this string. Example: set to `"_"` to turn `"Requester Email"` into `"Requester_Email"`.
 
 - **`SyncReissue`** (boolean)
-  When `true`, the Keyfactor lookup includes **revoked** and **expired** certificates (`pq.includeRevoked=true&pq.includeExpired=true`).  
--
+  When `true`, the Keyfactor lookup includes **revoked** and **expired** certificates (`pq.includeRevoked=true&pq.includeExpired=true`).
 
 ### Example `DigicertMetadataSync.dll.config`
 File is available within the repository named as App.config (**should be renamed to DigicertMetadataSync.dll.config for actual use**).
