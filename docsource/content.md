@@ -50,7 +50,7 @@ Before running, configure **`DigicertMetadataSync.dll.config`** and **`manualfie
 
 - **`SyncReissue`** (boolean)
   When `true`, the Keyfactor lookup includes **revoked** and **expired** certificates (`pq.includeRevoked=true&pq.includeExpired=true`).  
-- 
+
 ### Example `DigicertMetadataSync.dll.config`
 File is available within the repository named as App.config (**should be renamed to DigicertMetadataSync.dll.config for actual use**).
 ```xml
