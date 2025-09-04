@@ -1,6 +1,9 @@
 ﻿# digicert-metadata-sync
 A tool to automatically synchronize metadata fields and their content between **DigiCert** and **Keyfactor Command**.
-
+> **NOTE (Upgrade to 2.2.0+)**
+> - The structure of `manualfields.json` has changed and now supports additional fields (e.g., `KeyfactorValidation`, `KeyfactorMessage`, `KeyfactorEnrollment`, `KeyfactorOptions`, `KeyfactorDefaultValue`, `KeyfactorDisplayOrder`). Review the updated examples and tables below.
+> - `DigicertMetadataSync.dll.config` now includes a **Sync Reissue** setting (`SyncReissue`) that, when enabled, includes revoked and expired certificates in Keyfactor lookups to support reissue/historical synchronization.
+> - If you are upgrading from **any version prior to 2.2.0**, you must review and update your configuration to match the new schema and settings. See the **manualfields.json** and **app.config / DigicertMetadataSync.dll.config** sections for details.
 ---
 
 ## Overview
