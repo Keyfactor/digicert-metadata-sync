@@ -5,9 +5,9 @@
 <p align="center">
   <!-- Badges -->
 <img src="https://img.shields.io/badge/integration_status-production-3D1973?style=flat-square" alt="Integration Status: production" />
-<a href="https://github.com/Keyfactor/digicert-metadata-sync-dev/releases"><img src="https://img.shields.io/github/v/release/Keyfactor/digicert-metadata-sync-dev?style=flat-square" alt="Release" /></a>
-<img src="https://img.shields.io/github/issues/Keyfactor/digicert-metadata-sync-dev?style=flat-square" alt="Issues" />
-<img src="https://img.shields.io/github/downloads/Keyfactor/digicert-metadata-sync-dev/total?style=flat-square&label=downloads&color=28B905" alt="GitHub Downloads (all assets, all releases)" />
+<a href="https://github.com/Keyfactor/digicert-metadata-sync/releases"><img src="https://img.shields.io/github/v/release/Keyfactor/digicert-metadata-sync?style=flat-square" alt="Release" /></a>
+<img src="https://img.shields.io/github/issues/Keyfactor/digicert-metadata-sync?style=flat-square" alt="Issues" />
+<img src="https://img.shields.io/github/downloads/Keyfactor/digicert-metadata-sync/total?style=flat-square&label=downloads&color=28B905" alt="GitHub Downloads (all assets, all releases)" />
 </p>
 
 <p align="center">
@@ -78,7 +78,7 @@ Before running, configure **`DigicertMetadataSync.dll.config`** and **`manualfie
 -
 
 ### Example `DigicertMetadataSync.dll.config`
-
+File is available within the repository named as App.config (**should be renamed to DigicertMetadataSync.dll.config for actual use**).
 ```xml
 <?xml version="1.0" encoding="utf-8" ?>
 <configuration>
@@ -133,38 +133,37 @@ These map to Keyfactor’s Metadata Field schema and are optional unless your us
 | `KeyfactorDefaultValue` | string | no | Default field value. |
 
 ### Example `manualfields.json`
-
+File is available within the repository.
 ```json
 {
   "ManualFields": [
     {
-      "DigicertFieldName": "organization_contact.email",
-      "KeyfactorMetadataFieldName": "digicertorgemail",
-      "KeyfactorDescription": "DigiCert Requester Email",
-      "KeyfactorDataType": "String",
-      "KeyfactorHint": "name@example.com",
+      "DigicertFieldName": "id",
+      "KeyfactorMetadataFieldName": "DigicertID",
+      "KeyfactorDescription": "Digicert Assigned Cert ID",
+      "KeyfactorDataType": "Integer",
+      "KeyfactorHint": "",
       "KeyfactorAllowAPI": "True",
-
-      "KeyfactorValidation": "^[A-Za-z0-9._%+-]+@example\.com$",
-      "KeyfactorMessage": "Use your @example.com address.",
-      "KeyfactorEnrollment": "Required",
+      "KeyfactorValidation": "",
+      "KeyfactorMessage": "",
+      "KeyfactorEnrollment": "Optional",
       "KeyfactorOptions": [],
-      "KeyfactorDefaultValue": "",
-      "KeyfactorDisplayOrder": 20
+      "KeyfactorDefaultValue": ""
     }
   ],
   "CustomFields": [
     {
-      "DigicertFieldName": "Special_Multiple_Choice",
-      "KeyfactorMetadataFieldName": "Special_Multiple_Choice",
-      "KeyfactorDescription": "Special Multiple Choice (from DigiCert)",
-      "KeyfactorDataType": "Multiple Choice",
-      "KeyfactorHint": "Pick one",
+      "DigicertFieldName": "Field2",
+      "KeyfactorMetadataFieldName": "Field2",
+      "KeyfactorDescription": "Test",
+      "KeyfactorDataType": "String",
+      "KeyfactorHint": "Pick one or more",
       "KeyfactorAllowAPI": "True",
-
-      "KeyfactorOptions": ["Cat","Dust","Hoseob","Kitty","Many cute cats","Meol"],
+      "KeyfactorValidation": "",
+      "KeyfactorMessage": "",
       "KeyfactorEnrollment": "Optional",
-      "KeyfactorDisplayOrder": 30
+      "KeyfactorOptions": "",
+      "KeyfactorDefaultValue": "Test"
     }
   ]
 }
