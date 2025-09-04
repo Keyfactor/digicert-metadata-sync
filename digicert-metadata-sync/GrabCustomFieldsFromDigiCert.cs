@@ -12,38 +12,63 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using Keyfactor.Logging;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using NLog.Time;
+using Newtonsoft.Json.Linq;
 using RestSharp;
-using RestSharp.Authenticators;
 
 namespace DigicertMetadataSync;
 
 // This fuction adds the fields to keyfactor.
 // It will only add new fields.
-partial class DigicertSync
+internal partial class DigicertSync
 {
-    public static List<CustomDigicertMetadataInstance> GrabCustomFieldsFromDigiCert(string apikey, bool importdeactivated)
+    public static List<CustomDigicertMetadataInstance> GrabCustomFieldsFromDigiCert(
+        string apikey, bool importdeactivated, RestClient digicertClient)
     {
-        ILogger logger = LogHandler.GetClassLogger<DigicertSync>();
-        var digicertclient = new RestClient();
-        var customfieldsretrieval = "https://www.digicert.com/services/v2/account/metadata";
-        var digicertrequest = new RestRequest(customfieldsretrieval);
-        digicertrequest.AddHeader("Accept", "application/json");
-        digicertrequest.AddHeader("X-DC-DEVKEY", apikey);
-        var digicertresponse = digicertclient.Execute(digicertrequest);
-        var trimmeddigicertresponse = digicertresponse.Content.Remove(0, 12);
-        int lengthofresponse = trimmeddigicertresponse.Length;
-        trimmeddigicertresponse = trimmeddigicertresponse.Remove(lengthofresponse - 1, 1);
-        var fieldlist = JsonConvert.DeserializeObject<List<CustomDigicertMetadataInstance>>(trimmeddigicertresponse);
-        if (importdeactivated == false)
+        const string url = "https://www.digicert.com/services/v2/account/metadata";
+
+        var req = new RestRequest(url);
+        req.AddHeader("Accept", "application/json");
+        req.AddHeader("Content-Type", "application/json"); // matches DigiCert examples
+        req.AddHeader("X-DC-DEVKEY", apikey);
+
+        var resp = new RestResponse();
+        GlobalRetryPolicy.RetryPolicy.Execute(() =>
         {
-            fieldlist.RemoveAll(unit => unit.is_active == false);
+            try
+            {
+                resp = digicertClient.Execute(req);
+                if (!resp.IsSuccessful)
+                {
+                    var msg = "Something went wrong while retrieving custom fields from DigiCert.";
+                    _logger.Error(msg + $" HTTP {(int)resp.StatusCode} {resp.StatusDescription}. Body: {resp.Content}");
+                    throw new CustomException(msg, new Exception("Request failed."));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Unexpected error: {ex}");
+                throw;
+            }
+
+            _logger.Debug("Obtained custom fields from DigiCert.");
+        });
+
+        // Robust JSON handling per spec:
+        // { "metadata": [ ... ] }  OR  {} when none
+        var fieldlist = new List<CustomDigicertMetadataInstance>();
+        if (!string.IsNullOrWhiteSpace(resp.Content))
+        {
+            var root = JObject.Parse(resp.Content);
+            var metaToken = root["metadata"];
+            if (metaToken != null && metaToken.Type == JTokenType.Array)
+                fieldlist = metaToken.ToObject<List<CustomDigicertMetadataInstance>>() ??
+                            new List<CustomDigicertMetadataInstance>();
+            // else {} --> leave fieldlist empty
         }
+
+        if (!importdeactivated) fieldlist.RemoveAll(f => f.is_active == false);
+
         Console.WriteLine("Obtained custom fields from DigiCert.");
-        logger.LogDebug("Obtained custom fields from DigiCert.");
         return fieldlist;
     }
 }

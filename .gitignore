@@ -348,3 +348,6 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+/digicert-metadata-sync/digicert-metadata-sync/App - Copy.config
+/digicert-metadata-sync/digicert-metadata-sync/App - Blank.config
+/digicert-metadata-sync/digicert-metadata-sync/manualfields - Copy.json

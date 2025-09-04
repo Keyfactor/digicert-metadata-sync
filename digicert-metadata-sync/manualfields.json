@@ -6,33 +6,53 @@
       "KeyfactorDescription": "Digicert Assigned Cert ID",
       "KeyfactorDataType": "Integer",
       "KeyfactorHint": "",
-      "KeyfactorAllowAPI": "True"
+      "KeyfactorAllowAPI": "True",
+      "KeyfactorValidation": "",
+      "KeyfactorMessage": "",
+      "KeyfactorEnrollment": "Optional",
+      "KeyfactorOptions": [],
+      "KeyfactorDefaultValue": ""
     },
     {
       "DigicertFieldName": "organization_contact.email",
       "KeyfactorMetadataFieldName": "digicertorgemail",
       "KeyfactorDescription": "Digicert Requester Email",
       "KeyfactorDataType": "String",
-      "KeyfactorHint": "",
-      "KeyfactorAllowAPI": "True"
+      "KeyfactorHint": "Requester email (keyexample.com)",
+      "KeyfactorAllowAPI": "True",
+      "KeyfactorValidation": "",
+      "KeyfactorMessage": "Use a @keyexample.org or @keyexample.com email.",
+      "KeyfactorEnrollment": "Optional",
+      "KeyfactorOptions": [],
+      "KeyfactorDefaultValue": ""
+    },
+    {
+      "DigicertFieldName": "additional_emails",
+      "KeyfactorMetadataFieldName": "additional_emails",
+      "KeyfactorDescription": "Email notifications",
+      "KeyfactorDataType": "String",
+      "KeyfactorHint": "Pick one or more",
+      "KeyfactorAllowAPI": "True",
+      "KeyfactorValidation": "",
+      "KeyfactorMessage": "",
+      "KeyfactorEnrollment": "Optional",
+      "KeyfactorOptions": "",
+      "KeyfactorDefaultValue": ""
     }
   ],
   "CustomFields": [
     {
-      "DigicertFieldName": "test",
-      "KeyfactorMetadataFieldName": "",
-      "KeyfactorDescription": "Just an empty testfield.",
+      "DigicertFieldName": "Field2",
+      "KeyfactorMetadataFieldName": "Field2",
+      "KeyfactorDescription": "Test",
       "KeyfactorDataType": "String",
-      "KeyfactorHint": "",
-      "KeyfactorAllowAPI": "True"
-    },
-    {
-      "DigicertFieldName": "IntegerField",
-      "KeyfactorMetadataFieldName": "",
-      "KeyfactorDescription": "Another test field but with an int.",
-      "KeyfactorDataType": "Integer",
-      "KeyfactorHint": "",
-      "KeyfactorAllowAPI": "True"
+      "KeyfactorHint": "Pick one or more",
+      "KeyfactorAllowAPI": "True",
+      "KeyfactorValidation": "",
+      "KeyfactorMessage": "",
+      "KeyfactorEnrollment": "Optional",
+      "KeyfactorOptions": "",
+      "KeyfactorDefaultValue": "Test"
     }
   ]
 }

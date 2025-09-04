@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "DigicertMetadataSync": {
+      "commandName": "Project",
+      "commandLineArgs": "kftodc"
+    }
+  }
+}
