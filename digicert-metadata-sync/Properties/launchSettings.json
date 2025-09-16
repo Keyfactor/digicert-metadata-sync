@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "dctokf": {
+      "commandName": "Project",
+      "commandLineArgs": "dctokf"
+    },
+    "kftodc": {
+      "commandName": "Project",
+      "commandLineArgs": "kftodc"
+    }
+  }
+}
