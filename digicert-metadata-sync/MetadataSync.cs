@@ -1,588 +1,651 @@
-// Copyright 2021 Keyfactor
+﻿// Copyright 2024 Keyfactor
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions
 // and limitations under the License.
 
-using System.Collections.Generic;
-using System.IO;
-using System.Reflection.Metadata.Ecma335;
+using System.Text.Json;
+using DigicertMetadataSync.Client;
+using DigicertMetadataSync.Logic;
+using DigicertMetadataSync.Models;
 using Microsoft.Extensions.Configuration;
-using Newtonsoft.Json;
+using Microsoft.Extensions.DependencyInjection;
 using NLog;
-using RestSharp;
-using RestSharp.Authenticators;
-using ConfigurationManager = System.Configuration.ConfigurationManager;
-//using Keyfactor.Logging;
+using NLog.Config;
 
 namespace DigicertMetadataSync;
 
-internal partial class DigicertSync
+internal class DigicertSync
 {
     // create a static _logger field
     private static readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
     public static void Main(string[] args)
     {
-        _logger.Debug("Start sync");
-        var digicertapikey = ConfigurationManager.AppSettings.Get("DigicertAPIKey");
-        var digicertapikeytopperm = ConfigurationManager.AppSettings.Get("DigicertAPIKeyTopPerm");
-        var keyfactorusername = ConfigurationManager.AppSettings.Get("KeyfactorDomainAndUser");
-        var keyfactorpassword = ConfigurationManager.AppSettings.Get("KeyfactorPassword");
-        var importdeactivated = Convert.ToBoolean(ConfigurationManager.AppSettings.Get("ImportDataForDeactivatedDigiCertFields"));
-        int batchsize = 200;
-        var importallcustomdigicertfields =
-            Convert.ToBoolean(ConfigurationManager.AppSettings.Get("ImportAllCustomDigicertFields"));
-        _logger.Debug("Settings: importallcustomdigicertfields={0}, replacementcharacter={1}",
-            importallcustomdigicertfields);
-        var config_mode = args[0];
-        if (CheckMode(config_mode) == false)
-        {
-            _logger.Error("Inappropriate configuration mode. Check your command line arguments.");
-            throw new Exception("Inappropriate configuration mode. Check your command line arguments.");
-        }
+        // Define the config directory path
+        var configDirectory = Path.Combine(Directory.GetCurrentDirectory(), "config");
 
-        var digicertIssuerQueryterm = ConfigurationManager.AppSettings.Get("KeyfactorDigicertIssuedCertQueryTerm");
-        var returnlimit = ConfigurationManager.AppSettings.Get("KeyfactorCertSearchReturnLimit");
-        var keyfactorapilocation = ConfigurationManager.AppSettings.Get("KeyfactorAPIEndpoint");
-        int returnlimitint = Int32.Parse(returnlimit);
-        int numberOfBatches = (int)Math.Ceiling((double)returnlimitint / batchsize);
-        _logger.Debug("Loaded config. Starting metadata field name processing.");
-
-
-        // Initializing net client
-        var client = new RestClient();
-        client.Authenticator = new HttpBasicAuthenticator(keyfactorusername, keyfactorpassword);
-
-        //Getting list of custom metadata fields from Keyfactor
-        var getmetadalistkf = keyfactorapilocation + "MetadataFields";
-        var getmetadatakfclient = new RestClient();
-        getmetadatakfclient.Authenticator = new HttpBasicAuthenticator(keyfactorusername, keyfactorpassword);
-        var metadatakfrequest = new RestRequest(getmetadalistkf);
-        metadatakfrequest.AddHeader("Accept", "application/json");
-        metadatakfrequest.AddHeader("x-keyfactor-api-version", "1");
-        metadatakfrequest.AddHeader("x-keyfactor-requested-with", "APIClient");
-        var metadatakfresponse = client.Execute(metadatakfrequest);
-        var metadatakfrawresponse = metadatakfresponse.Content;
-        var kfmetadatafields = JsonConvert.DeserializeObject<List<KeyfactorMetadataInstance>>(metadatakfrawresponse);
-        Console.WriteLine("Got list of custom fields from Keyfactor.");
-        _logger.Debug("Got list of custom fields from Keyfactor.");
-
-        //Getting list of custom metadata fields on DigiCert
-        var customdigicertmetadatafieldlist = GrabCustomFieldsFromDigiCert(digicertapikey, importdeactivated);
-
-        //Convert DigiCert custom fields to Keyfactor appropriate ones
-        //This depends on whether the setting to import all fields was enabled or not
-
-        var config = new ConfigurationBuilder().SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-            .AddJsonFile("manualfields.json").Build();
-        var kfcustomfields = new List<ReadInMetadataField>();
-
-        if (importallcustomdigicertfields)
-        {
-            _logger.Debug("Loading custom fields using autofill");
-            //This imports all the custom fields based on the list of metadata from DigiCert and does autofill
-            for (var i = 0; i < customdigicertmetadatafieldlist.Count; i++)
-            {
-                var localkffieldinstance = new ReadInMetadataField();
-                var kfdatatype = "String";
-                if (customdigicertmetadatafieldlist[i].data_type != null)
-                    localkffieldinstance.KeyfactorDataType = customdigicertmetadatafieldlist[i].data_type;
-                else
-                    localkffieldinstance.KeyfactorDataType = "String";
-                if (customdigicertmetadatafieldlist[i].label != null)
-                {
-                    /*
-                        NOTICE: KEYFACTOR DOES NOT SUPPORT SPACES IN METADATA FIELD NAMES.
-                    WHITESPACE MUST BE REMOVED FROM THE NAME.
-                    CURRENTLY REPLACING WITH "_-_" AS STAND IN FOR SPACE CHARACTER.
-                        */
-                    localkffieldinstance.DigicertFieldName = customdigicertmetadatafieldlist[i].label;
-                    localkffieldinstance.KeyfactorMetadataFieldName = customdigicertmetadatafieldlist[i].label;
-                    _logger.Debug("DC field name {0} becomes {1} in Keyfactor", localkffieldinstance.DigicertFieldName,
-                        localkffieldinstance.KeyfactorMetadataFieldName);
-                }
-                else
-                {
-                    localkffieldinstance.DigicertFieldName = "";
-                    localkffieldinstance.KeyfactorMetadataFieldName = "";
-                }
-
-                if (customdigicertmetadatafieldlist[i].description != null)
-                    localkffieldinstance.KeyfactorDescription = customdigicertmetadatafieldlist[i].description;
-                else
-                    localkffieldinstance.KeyfactorDescription = "None.";
-
-                localkffieldinstance.KeyfactorAllowAPI = "True";
-                localkffieldinstance.KeyfactorHint = "";
-                //Other parameters like enrollment can be set here too.
-
-                kfcustomfields.Add(localkffieldinstance);
-            }
-        }
+        // Ensure the config directory exists
+        if (!Directory.Exists(configDirectory)) Directory.CreateDirectory(configDirectory);
+        // Set up NLog to load the configuration from the config folder
+        var nlogConfigPath = Path.Combine(configDirectory, "nlog.config");
+        if (File.Exists(nlogConfigPath))
+            LogManager.Configuration = new XmlLoggingConfiguration(nlogConfigPath);
         else
+            _logger.Error($"NLog configuration file not found at {nlogConfigPath}. Using default configuration.");
+
+        // Start of the run
+        var runId = Guid.NewGuid();
+        _logger.Info("============================================================");
+        _logger.Info($"[START] DigiCert Metadata Sync - Run at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        _logger.Info($"[RUN ID: {runId}]");
+        _logger.Info("============================================================");
+        ///////////////////////////
+        // SECTION I: Initial setup and connection testing
+        _logger.Debug("Loading configuration.");
+        ConfigMode configMode;
+        try
         {
-            // This loads custom metadata using the manualfields config.
-            // Converts blank fields etc and preps the data.
-            var customfieldslst = "CustomFields";
-            kfcustomfields = config.GetSection(customfieldslst).Get<List<ReadInMetadataField>>();
-            if (kfcustomfields == null) kfcustomfields = new List<ReadInMetadataField>();
-            _logger.Debug("Loading custom fields using json, no autofill/conversion");
-        }
-        foreach (var item in kfcustomfields)
-        {
-            item.FieldType = "Custom";
-        }
+            if (args.Length == 0)
+                throw new ArgumentException("No configuration mode provided. Please specify KFtoSC or SCtoKF.");
 
-
-        //Adding metadata fields for the ID and the email of the requester from DigiCert.
-        var kfmanualfields = new List<ReadInMetadataField>();
-        var manualfieldslist = "ManualFields";
-        kfmanualfields = config.GetSection(manualfieldslist).Get<List<ReadInMetadataField>>();
-        if (kfmanualfields == null) kfmanualfields = new List<ReadInMetadataField>();
-        foreach (var item in kfmanualfields)
-        {
-            item.FieldType = "Manual";
-        }
-        _logger.Debug("Performed field conversion.");
-
-        //Pulling list of existing metadata fields from Keyfactor for later comparison.
-        var noexistingfields = true;
-
-        var existingmetadataurl = keyfactorapilocation + "MetadataFields";
-        var existingmetadataclient = new RestClient();
-        existingmetadataclient.Authenticator = new HttpBasicAuthenticator(keyfactorusername, keyfactorpassword);
-        var existingmetadatareq = new RestRequest(existingmetadataurl);
-        existingmetadatareq.AddHeader("Accept", "application/json");
-        existingmetadatareq.AddHeader("x-keyfactor-api-version", "1");
-        existingmetadatareq.AddHeader("x-keyfactor-requested-with", "APIClient");
-        var existingmetadataresponse = existingmetadataclient.Execute(existingmetadatareq);
-        var existingmetadatalist = new List<KeyfactorMetadataInstance>();
-        if (existingmetadataresponse != null)
-        {
-            //Fields exist
-            existingmetadatalist =
-                JsonConvert.DeserializeObject<List<KeyfactorMetadataInstance>>(existingmetadataresponse.Content);
-            noexistingfields = false;
-        }
-
-        Console.WriteLine("Pulled existing metadata fields from keyfactor.");
-        _logger.Debug("Pulled existing metadata fields from Keyfactor.");
-
-        
-        
-        // Carrying out the persistent banned character database check
-
-        // Loading up the character database
-        string currentDirectory = Directory.GetCurrentDirectory();
-
-        string filePath = Path.Combine(currentDirectory, "replacechar.json"); 
-
-        bool restartandconfigrequired = false;
-
-        List<CharDBItem> allBannedChars = JsonConvert.DeserializeObject<List<CharDBItem>>(File.ReadAllText(filePath));
-
-        if (importallcustomdigicertfields)
-        {
-            CheckForChars(kfmanualfields, allBannedChars, restartandconfigrequired);
-            CheckForChars(kfcustomfields, allBannedChars, restartandconfigrequired);
-
-            string formattedjsonchars = JsonConvert.SerializeObject(allBannedChars, Formatting.Indented);
-            File.WriteAllText(filePath, formattedjsonchars);
-
-            foreach (var badchar in allBannedChars)
+            // Parse the config mode from the command-line arguments
+            if (!Enum.TryParse(args[0], true, out configMode))
             {
-                if (badchar.replacementcharacter == "null")
-                {
-                    restartandconfigrequired = true;
-                    break;
-                }
+                _logger.Error("Invalid configuration mode. Please specify KFtoDC or DCtoKF.");
+                throw new ArgumentException("Invalid configuration mode. Please specify KFtoDC or DCtoKF.");
             }
-
-            if (restartandconfigrequired)
-            {
-                _logger.Trace("Please replace \"null\" with your desired replacement characters in replacechar.json and re-run the tool! Only alphanumerics, \"-\" and \"_\" are allowed");
-                Console.WriteLine("Please replace \"null\" with your desired replacement characters in replacechar.json and re-run the tool! Only alphanumerics, \"-\" and \"_\" are allowed");
-                Environment.Exit(0);
-            }
-
-           
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Unable to process tool mode: {ex.Message}");
+            throw; // Use 'throw;' to preserve the original stack trace
         }
 
-       // Converting the read in fields into sendable lists
-        var convertedmanualfields = convertlisttokf(kfmanualfields, allBannedChars, importallcustomdigicertfields);
-        var convertedcustomfields = convertlisttokf(kfcustomfields, allBannedChars, importallcustomdigicertfields);
+        _logger.Info($"Configuration mode set to: {configMode}");
 
-
-
-        _logger.Trace("Sending following manual fields to KF: {0}", JsonConvert.SerializeObject(convertedmanualfields));
-        var totalfieldsadded = 0;
-
-        //If all the fields are absent from Keyfactor, the fields are added.
-        var manualresult = AddFieldsToKeyfactor(convertedmanualfields, existingmetadatalist, noexistingfields,
-            keyfactorusername, keyfactorpassword, keyfactorapilocation);
-        _logger.Trace("Sending following custom fields to KF: {0}", JsonConvert.SerializeObject(convertedcustomfields));
-
-        var customresult = AddFieldsToKeyfactor(convertedcustomfields, existingmetadatalist, noexistingfields,
-            keyfactorusername, keyfactorpassword, keyfactorapilocation);
-
-        totalfieldsadded += manualresult.Item1;
-        totalfieldsadded += customresult.Item1;
-
-        var allnewfields = manualresult.Item2.Concat(customresult.Item2).ToList();
-
-
-        //Processing this batch
-        Console.WriteLine($"Added custom fields to Keyfactor. Total fields added: {totalfieldsadded.ToString()}");
-        _logger.Debug($"Added custom fields to Keyfactor. Total fields added: {totalfieldsadded.ToString()}");
-
-        // Syncing Data from Keyfactor TO DigiCert
-        // Sync from DigiCert to Keyfactor must run at least once prior to this - only runs with custom fields
-        if (config_mode == "kftodc")
+        // Build the config
+        var config = new ConfigurationBuilder().Build();
+        try
         {
-            // Initialize variable to keep track of items downloaded so far
-            int certsdownloaded = 0;
-            var certcounttracker = 0;
-            var totalcertsprocessed = 0;
-            var numcertsdatauploaded = 0;
-            for (int batchnum = 0; batchnum < numberOfBatches; batchnum++)
+            config = new ConfigurationBuilder()
+                .SetBasePath(configDirectory) // Set the base path to the config directory
+                .AddJsonFile("config.json", false, false)
+                .AddJsonFile("fields.json", false, false)
+                .AddJsonFile("bannedcharacters.json", false, false)
+                .Build();
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Unable to load config file: {ex.Message}");
+            throw; // Use 'throw;' to preserve the original stack trace
+        }
+
+        Config settings = new();
+        List<CharDBItem> bannedCharList = new();
+
+
+        try
+        {
+            // Required: Config
+            settings = config.GetSection("Config")
+                           .Get<Config>()
+                       ?? throw new InvalidOperationException("Missing config section in the config json file.");
+
+            // Optional: ManualFields & CustomFields (empty list is fine)
+            _ = config.GetSection("ManualFields")
+                    .Get<List<UnifiedFormatField>>(o => o.ErrorOnUnknownConfiguration = true) ??
+                new List<UnifiedFormatField>();
+
+            _ = config.GetSection("CustomFields")
+                    .Get<List<UnifiedFormatField>>(o => o.ErrorOnUnknownConfiguration = true) ??
+                new List<UnifiedFormatField>();
+
+            // Optional: BannedCharacters (default to empty list)
+            bannedCharList = config.GetSection("BannedCharacters")
+                .Get<List<CharDBItem>>(o => o.ErrorOnUnknownConfiguration = true) ?? new List<CharDBItem>();
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Unable to process config file: {ex.Message}");
+            throw; // Use 'throw;' to preserve the original stack trace
+        }
+
+        ValueCoercion.KeyfactorDateFormat = settings.keyfactorDateFormat;
+        _logger.Info("Configuration loaded successfully. Testing connection to DigiCert API and Keyfactor API.");
+
+
+        // Setup the service
+        var services = new ServiceCollection();
+        services.AddDigiCertClient("https://www.digicert.com/services/v2/");
+        services.AddKeyfactorMetadataClient(settings.keyfactorAPIUrl);
+        // Build the service provider
+        var provider = services.BuildServiceProvider();
+
+        // Set up and authenticate DigiCert clients
+        var dcApiKeyClient = provider.GetRequiredService<DigiCertClient>();
+        dcApiKeyClient.Authenticate(settings.digicertApiKey);
+        // Test connection
+        var dcFields = dcApiKeyClient.ListCustomFields();
+
+        // Test Keyfactor connection
+        var kfClient = provider.GetRequiredService<KeyfactorMetadataClient>();
+        // Authenticate
+        kfClient.Authenticate(
+            settings.keyfactorDomainAndUser,
+            settings.keyfactorPassword
+        );
+        var kfFields = new List<KeyfactorMetadataField>();
+        try
+        {
+            kfFields = kfClient.ListMetadataFields();
+            _logger.Debug("Retrieved All Metadata Fields from Keyfactor.");
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to connect to Keyfactor API: {ex.Message}");
+            _logger.Fatal($"Critical error: {ex.Message}");
+            Environment.Exit(1); // Exit with a non-zero code to indicate failure
+            throw; // Use 'throw;' to preserve the original stack trace
+        }
+
+        /////////////
+        //SECTION II: Determination of field overlap
+        var unifiedFieldList = new List<UnifiedFormatField>();
+        try
+        {
+            if (settings.importAllCustomDigicertFields)
             {
-                // Check if reaching the arbitrary limit
-                if (certsdownloaded + batchsize > returnlimitint)
-                {
-                    Console.WriteLine($"Stopped downloading at the configured limit of {returnlimitint} items.");
-                    _logger.Debug($"Stopped downloading at the configured limit of {returnlimitint} items.");
-                    break;
-                }
-
-
-                var fullcustomdgfieldlist = new List<DigicertCustomFieldInstance>();
-                var newcustomfieldsfordg = new List<DigicertCustomFieldInstance>();
-
-                // Download the items in this batch 
-                var digicertlookup = keyfactorapilocation + "Certificates?pq.queryString=IssuerDN%20-contains%20%22"
-                                                          + digicertIssuerQueryterm + "%22&pq.returnLimit=" + batchsize.ToString() +
-                                                          "&includeMetadata=true" + "&pq.pageReturned=" + batchnum.ToString();
-                var request = new RestRequest(digicertlookup);
-                request.AddHeader("Accept", "application/json");
-                request.AddHeader("x-keyfactor-api-version", "1");
-                request.AddHeader("x-keyfactor-requested-with", "APIClient");
-                var response = client.Execute(request);
-                var rawresponse = response.Content;
-                var certlist = JsonConvert.DeserializeObject<List<KeyfactorCert>>(rawresponse,
-                    new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
-                Console.WriteLine("Got DigiCert issued certs from keyfactor");
-                _logger.Debug("Got DigiCert issued certs from keyfactor");
-
-                // Rebuild the list of metadata field names as they are on DigiCerts side. 
-
-                // This covers all of the custom fields on Digicerts side
-                foreach (var dgcustomfield in customdigicertmetadatafieldlist)
-                {
-                    var localdigicertfieldinstance = new DigicertCustomFieldInstance();
-
-                    localdigicertfieldinstance.label = dgcustomfield.label;
-                    localdigicertfieldinstance.is_active = dgcustomfield.is_active;
-                    localdigicertfieldinstance.data_type = dgcustomfield.data_type;
-                    localdigicertfieldinstance.is_required = dgcustomfield.is_required;
-
-                    foreach (var kffieldeq in kfcustomfields)
-                        if (dgcustomfield.label == kffieldeq.DigicertFieldName)
-                            localdigicertfieldinstance.kf_field_name = kffieldeq.DigicertFieldName;
-
-                    fullcustomdgfieldlist.Add(localdigicertfieldinstance);
-                }
-
-
-                //This covers all of the new fields on Keyfactors side, including new ones - needs to have digicert ids for the new ones
-                foreach (var kfcustomfield in kfcustomfields)
-                {
-                    var localdigicertfieldinstance = new DigicertCustomFieldInstance();
-                    localdigicertfieldinstance.label = kfcustomfield.DigicertFieldName;
-                    localdigicertfieldinstance.is_active = true;
-                    localdigicertfieldinstance.kf_field_name = kfcustomfield.KeyfactorMetadataFieldName;
-                    if (kfcustomfield.KeyfactorDataType == "String")
-                        localdigicertfieldinstance.data_type = "text";
-                    else if (kfcustomfield.KeyfactorDataType == "Int")
-                        localdigicertfieldinstance.data_type = "int";
-                    else
-                        localdigicertfieldinstance.data_type = "anything";
-                    localdigicertfieldinstance.is_required = false;
-
-                    if (!fullcustomdgfieldlist.Any(p => p.label == localdigicertfieldinstance.label))
+                _logger.Info(
+                    "importAllCustomDigicertFields is enabled. Mapping DigiCert custom fields to UnifiedFormatField. Notice: fields that have options will not have these options added" +
+                    "to Keyfactor as DigiCert offers no way to retrieve options (for dropdownmenu/email list). Please consider using fields.json if you want to enable options for any metadata fields in Keyfactor.");
+                unifiedFieldList = dcFields
+                    // Include disabled only if explicitly enabled; treat null as active
+                    .Where(f => settings.importDataForDeactivatedDigiCertFields || (f.IsActive == true))
+                    .Select(f =>
                     {
-                        fullcustomdgfieldlist.Add(localdigicertfieldinstance);
-                        newcustomfieldsfordg.Add(localdigicertfieldinstance);
-                    }
-                }
+                        var name = !string.IsNullOrWhiteSpace(f.Label) ? f.Label! : $"metadata_{f.Id}";
+                        var dcType = f.DataType; // may be null; your mapper should handle it
 
-                //Add fields that don't exist on DigiCert to Digicert 
-                _logger.Trace("Adding following fields to DigiCert: {0}",
-                    JsonConvert.SerializeObject(newcustomfieldsfordg));
-                foreach (var newdgfield in newcustomfieldsfordg)
-                {
-                    var digicertapilocation = "https://www.digicert.com/services/v2/account/metadata";
-                    var digicertnewfieldsclient = new RestClient();
-                    var digicertnewfieldsrequest = new RestRequest(digicertapilocation);
-                    digicertnewfieldsrequest.AddHeader("Accept", "application/json");
-                    digicertnewfieldsrequest.AddHeader("X-DC-DEVKEY", digicertapikeytopperm);
-                    var serializedsyncfield = JsonConvert.SerializeObject(newdgfield);
-                    digicertnewfieldsrequest.AddParameter("application/json", serializedsyncfield,
-                        ParameterType.RequestBody);
-                    var digicertresponsenewfields = digicertnewfieldsclient.Post(digicertnewfieldsrequest);
-                }
-
-
-                // Grabbing the list again from digicert, populating ids for new ones 
-                //Getting list of custom metadata fields on DigiCert
-                var updatedmetadatafieldlist = GrabCustomFieldsFromDigiCert(digicertapikey, importdeactivated);
-                foreach (var subitem in updatedmetadatafieldlist)
-                foreach (var fulllistitem in fullcustomdgfieldlist)
-                    if (subitem.label == fulllistitem.label)
-                        fulllistitem.id = subitem.id;
-
-
-                // Pushing the data to DigiCert
-                var certlist2 = JsonConvert.DeserializeObject<dynamic>(rawresponse,
-                    new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
-                foreach (var cert in certlist2)
-                {
-                    Dictionary<string, string> kfstoredmetadata =
-                        cert["Metadata"].ToObject<Dictionary<string, string>>();
-
-                    var certhascustomfields = false;
-                    foreach (var checkfield in fullcustomdgfieldlist)
-                        if (kfstoredmetadata.ContainsKey(checkfield.kf_field_name))
-                            certhascustomfields = true;
-
-                    if (certhascustomfields)
-                    {
-                        var kfserialnumber = cert["SerialNumber"].ToString();
-
-                        var digicertnewlookupurl = "https://www.digicert.com/services/v2/order/certificate" +
-                                                   "?filters[serial_number]=" + kfserialnumber;
-
-                        var newbodytemplate = new RootDigicertLookup();
-                        var newsearchcriterioninstance = new SearchCriterion();
-                        newbodytemplate.searchCriteriaList.Add(newsearchcriterioninstance);
-                        var lookupnewrequest = new RestRequest(digicertnewlookupurl);
-                        lookupnewrequest.AddHeader("Content-Type", "application/json");
-                        lookupnewrequest.AddHeader("X-DC-DEVKEY", digicertapikey);
-                        var digicertnewlookupresponse = client.Execute(lookupnewrequest);
-                        var newparseddigicertresponse =
-                            JsonConvert.DeserializeObject<dynamic>(digicertnewlookupresponse.Content);
-
-
-                        if (newparseddigicertresponse["page"]["total"] != 0)
+                        return new UnifiedFormatField
                         {
-                            var newflatteneddigicertinstance = newparseddigicertresponse["orders"][0];
-                            var orderid = newflatteneddigicertinstance["id"].ToString();
+                            // Names/descriptions (no sanitization)
+                            DigicertFieldName = name,
+                            KeyfactorMetadataFieldName = name,
+                            KeyfactorDescription = name,
+                            // Type mapping via your DigiCert -> Keyfactor mapper
+                            KeyfactorDataType = Helpers.ToKeyfactorDataType(dcType),
+                            // No validation/message per request
+                            KeyfactorHint = string.Empty,
+                            KeyfactorValidation = string.Empty,
+                            KeyfactorMessage = string.Empty,
+                            // Required -> enrollment required
+                            KeyfactorEnrollment = f.IsRequired == true ? 1 : 0,
+                            // DigiCert account metadata API doesn't return option sets
+                            KeyfactorOptions = [],
+                            KeyfactorAllowAPI = true,
+                            // Defaults
+                            KeyfactorDefaultValue = string.Empty,
+                            KeyfactorDisplayOrder = 0,
+                            KeyfactorCaseSensitive = false,
+                            KeyfactorMetadataFieldId = 0,
+                            ToolFieldType = UnifiedFieldType.Custom
+                        };
+                    })
+                    .ToList();
 
-                            var digicertmetadataupdateapilocation =
-                                "https://www.digicert.com/services/v2/order/certificate/" + orderid + "/custom-field";
-                            var digicertnewfieldsclient = new RestClient();
-                            var digicertnewfieldsrequest = new RestRequest(digicertmetadataupdateapilocation);
-                            digicertnewfieldsrequest.AddHeader("Accept", "application/json");
-                            digicertnewfieldsrequest.AddHeader("X-DC-DEVKEY", digicertapikey);
+                _logger.Info($"Loaded {unifiedFieldList.Count} custom fields from DigiCert.");
+            }
+            else
+            {
+                _logger.Info("importAllCustomDigicertFields is disabled. Using field mapping from configuration.");
+                // This loads custom metadata using the CustomFields config.
 
-                            foreach (var newfield in fullcustomdgfieldlist)
+                unifiedFieldList = config
+                    .GetSection("CustomFields")
+                    .Get<List<UnifiedFormatField>>(o => o.ErrorOnUnknownConfiguration = true);
+                foreach (var item in unifiedFieldList) item.ToolFieldType = UnifiedFieldType.Custom;
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.Fatal($"Critical error: {ex.Message}");
+            Environment.Exit(1);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Error processing custom fields: {ex.Message}");
+        }
+
+        _logger.Debug($"Loaded {unifiedFieldList.Count.ToString()} Custom Fields.");
+
+        // Load the manual fields from the config file and add it to the field list.
+        var unifiedManualFieldList = config.GetSection("ManualFields")
+            .Get<List<UnifiedFormatField>>(o => o.ErrorOnUnknownConfiguration = true)?
+            .Select(item =>
+            {
+                item.ToolFieldType = UnifiedFieldType.Manual;
+                return item;
+            })
+            .ToList() ?? new List<UnifiedFormatField>();
+        unifiedFieldList.AddRange(unifiedManualFieldList);
+        _logger.Debug($"Loaded {unifiedManualFieldList.Count.ToString()} Manual Fields.");
+
+        // Initialize a list to collect invalid character details
+        var invalidCharacterDetails = new List<string>();
+
+        // Check both lists for bad characters, ask for restart if needed.
+        var restartRequired = false;
+
+        if (settings.importAllCustomDigicertFields)
+            BannedCharacters.CheckForChars(unifiedFieldList, bannedCharList, invalidCharacterDetails);
+        else
+            BannedCharacters.CheckForChars(unifiedFieldList, bannedCharList, invalidCharacterDetails, true);
+
+        foreach (var badchar in bannedCharList)
+            if (badchar.replacementcharacter == "null")
+                restartRequired = true;
+
+        // Serialize the banned characters list with pretty-printing
+        var formattedCharList = JsonSerializer.Serialize(new { BannedCharacters = bannedCharList },
+            new JsonSerializerOptions
+            {
+                WriteIndented = true // Enable pretty-printing
+            });
+
+        File.WriteAllText(Path.Combine(configDirectory, "bannedcharacters.json"), formattedCharList);
+
+        // Log aggregated invalid character details if replacements are missing
+        if (restartRequired && invalidCharacterDetails.Any())
+        {
+            _logger.Warn("The following fields contain invalid characters with no replacements:");
+            foreach (var detail in invalidCharacterDetails) _logger.Warn(detail);
+        }
+
+        if (restartRequired)
+        {
+            // Tool needs restarting at this point. 
+            var bannedChars = new Exception("Replacement characters for auto-fill for automated DigiCert custom field import need specifying. Please fill in the required data in config/bannedcharacters.json.");
+            _logger.Fatal($"Critical error: {bannedChars.Message}");
+            Environment.Exit(1); // Exit with a non-zero code to indicate failure
+        }
+
+        // Process the fields - run banned character replacement and send the fields off to Keyfactor.
+        Parallel.ForEach(unifiedFieldList,
+            field =>
+            {
+                field.KeyfactorMetadataFieldName =
+                    BannedCharacters.ReplaceAllBannedCharacters(field.KeyfactorMetadataFieldName, bannedCharList);
+            });
+        kfClient.SendUnifiedMetadataFields(unifiedFieldList, kfFields);
+
+        // Loading DigiCert metadata field IDs into the unified list (for custom fields only)
+        foreach (var unifiedField in unifiedFieldList)
+        {
+            var matchingDcField = dcFields
+                .FirstOrDefault(dc =>
+                    string.Equals(dc.Label, unifiedField.DigicertFieldName,
+                        StringComparison.OrdinalIgnoreCase));
+            if (matchingDcField != null)
+            {
+                unifiedField.DigiCertMetadaFieldId = matchingDcField.Id;
+                unifiedField.DigicertDataType = Helpers.ToDigiCertEnumFromString(matchingDcField.DataType);
+            }
+
+        }
+
+        //Step 1 - pull all digicert custom fields
+        // step 2 - if some if these fields do not exist in keyfactor
+        //if importAllCustomDigicertFields = true put out a message stating they dont exist in digicert and need to be created manually, will be synced on next run.
+        //else create them
+
+        //If running in KFtoDC mode, we need to update the field IDs in the unified list.
+        if (configMode == ConfigMode.KFtoDC)
+            if (settings.createMissingFieldsInDigicert)
+            {
+                // STEP 1 - Identify what fields need to get pushed to digicert.
+                var customFieldsOnly = unifiedFieldList.Where(f => f.ToolFieldType == UnifiedFieldType.Custom)
+                    .ToList();
+                var fieldsNotInDC = customFieldsOnly
+                    .Where(customField => !dcFields
+                        .Any(dcField => string.Equals(customField.DigicertFieldName, dcField.Label,
+                            StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+                // STEP 2 - Push fields to digicert
+                if (fieldsNotInDC.Count > 0)
+                {
+                    if (settings.importAllCustomDigicertFields)
+                    {
+                        _logger.Info(
+                            "You are operating KFtoDC with importAllCustomDigicertFields set to true in config.json and have fields that may not exist in DigiCert. Fields that do not have names exactly matched between Keyfactor and DigiCert will not" +
+                            "have their contents synced. If you have fields that exist in Keyfactor but do not exist in DigiCert and you wish to sync their contents to DigiCert," +
+                            "you will need to create these fields manually in DigiCert to sync them during the next run of the tool, or switch to using fields.json.");
+                    }
+                    else
+                    {
+                        _logger.Info("Creating custom fields in DigiCert to match data in fields.json.");
+                        try
+                        {
+                            IEnumerable<DcCustomFieldCreate> fieldsToCreate = new List<DcCustomFieldCreate>();
+                            foreach (var field in fieldsNotInDC)
                             {
-                                var keyfactorfieldname = "";
-                                var datauploaded = false;
-                                //Lookup the keyfactor name for digicert fields 
-                                foreach (var sublookup in kfcustomfields)
-                                    if (sublookup.DigicertFieldName == newfield.label)
-                                    {
-                                        var metadatapayload = new Dictionary<string, string>();
-                                        metadatapayload["metadata_id"] = newfield.id.ToString();
-                                        if (kfstoredmetadata.ContainsKey(sublookup.KeyfactorMetadataFieldName))
-                                        {
-                                            metadatapayload["value"] =
-                                                kfstoredmetadata[sublookup.KeyfactorMetadataFieldName];
-                                            var newserializedsyncfield = JsonConvert.SerializeObject(metadatapayload);
-                                            digicertnewfieldsrequest.AddParameter("application/json",
-                                                newserializedsyncfield, ParameterType.RequestBody);
-                                            var digicertresponsenewfields =
-                                                digicertnewfieldsclient.Post(digicertnewfieldsrequest);
-                                            datauploaded = true;
-                                        }
-                                    }
+                                var dcType = field.DigicertDataType != (int)DigiCertCustomFieldDataType.Anything
+                                    ? field.DigicertDataType
+                                    : Helpers.ToDigiCertDataType(field.KeyfactorDataType);
+                                var (isRequired, isActive) = Helpers.ToDigiCertFlags(field.KeyfactorEnrollment);
+
+                                var newField = new DcCustomFieldCreate
+                                {
+                                    Label = field.DigicertFieldName,
+                                    DataType = dcType.ToWireString(),
+                                    IsActive = isActive,
+                                    IsRequired = isRequired // Enrollment 1 = Required
+                                    // Other properties can be set as needed
+                                };
+                                fieldsToCreate = fieldsToCreate.Append(newField);
                             }
 
-                            numcertsdatauploaded += 1;
+                            var createdField = dcApiKeyClient.BulkAddCustomFields(fieldsToCreate);
+                            if (createdField.IsSuccessStatusCode)
+                                _logger.Info(
+                                    "Added missing fields to DigiCert.");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Error(
+                                $"Error adding new DigiCert custom field to DigiCert: {ex.Message}");
+                        }
+
+                        // STEP 3 - Retrieve and store the new DigiCert field IDs.
+                        dcFields = dcApiKeyClient.ListCustomFields();
+                        foreach (var unifiedField in unifiedFieldList)
+                        {
+                            var matchingDcField = dcFields
+                                .FirstOrDefault(dc =>
+                                    string.Equals(dc.Label, unifiedField.DigicertFieldName,
+                                        StringComparison.OrdinalIgnoreCase));
+                            if (matchingDcField != null) unifiedField.DigiCertMetadaFieldId = matchingDcField.Id;
                         }
                     }
-
-                    totalcertsprocessed += 1;
                 }
-
-
-                // Update the count of items downloaded so far
-                certsdownloaded += batchsize;
-
-                // Check if all items have been downloaded
-                if (certlist.Count == 0)
+                else
                 {
-                    Console.WriteLine(
-                        $"Metadata sync from Keyfactor to DigiCert complete. Number of certs processed: {totalcertsprocessed.ToString()}");
-                    Console.WriteLine($"Certs that had their metadata synced: {numcertsdatauploaded.ToString()}");
-                    _logger.Debug(
-                        $"Metadata sync from Keyfactor to DigiCert complete. Number of certs processed: {totalcertsprocessed.ToString()}");
-                    _logger.Debug($"Certs that had their metadata synced: {numcertsdatauploaded.ToString()}"); ;
-
-                    break;
+                    _logger.Info("All custom fields are already present in DigiCert. New fields will not be created.");
                 }
             }
-        }
-
-        // Syncing Data from DigiCert TO Keyfactor
-        if (config_mode == "dctokf")
-        {
-            // Initialize variable to keep track of items downloaded so far
-            int certsdownloaded = 0;
-            var certcounttracker = 0;
-            for (int batchnum = 0; batchnum < numberOfBatches; batchnum++)
+            else
             {
-                // Check if reaching the arbitrary limit
-                if (certsdownloaded + batchsize > returnlimitint)
-                {
-                    Console.WriteLine($"Stopped downloading at the configured limit of {returnlimitint} items.");
-                    _logger.Debug($"Stopped downloading at the configured limit of {returnlimitint} items.");
-                    break;
-                }
-
-                // Download the items in this batch 
-                Console.WriteLine($"Downloading batch {batchnum + 1}...");
+                _logger.Debug("Automated field creation for KFtoDC mode is disabled. Fields that exist in fields.json but do not exist in DigiCert will not be added to DigiCert.");
+            }
 
 
-                var digicertlookup = keyfactorapilocation + "Certificates?pq.queryString=IssuerDN%20-contains%20%22"
-                                                          + digicertIssuerQueryterm + "%22&pq.returnLimit=" + batchsize.ToString() +
-                                                          "&includeMetadata=true" + "&pq.pageReturned=" + batchnum.ToString();
-                var request = new RestRequest(digicertlookup);
-                request.AddHeader("Accept", "application/json");
-                request.AddHeader("x-keyfactor-api-version", "1");
-                request.AddHeader("x-keyfactor-requested-with", "APIClient");
-                var response = client.Execute(request);
-                var rawresponse = response.Content;
-                var certlist = JsonConvert.DeserializeObject<List<KeyfactorCert>>(rawresponse,
-                    new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
-                Console.WriteLine("Got DigiCert issued certs from keyfactor");
-                _logger.Debug("Got DigiCert issued certs from keyfactor");
+        // Get list of all DigiCert Certs stored in Keyfactor.
+        // Define pagination parameters
+        var pageSize = settings.keyfactorPageSize;
+        var pageNumber = 1;
+        var hasMorePages = true;
 
-                    //Each cert that is DigiCert in origin in Keyfactor is looked up on DigiCert via serial number,
-                    //and the metadata contents from those fields are stored.
-                    var digicertlookupclient = new RestClient();
-                    var digicertcertificates = new List<dynamic>();
-                    foreach (var certinstance in certlist)
+        // Initialize counters and lists for tracking certificates
+        var totalCertsProcessed = 0;
+        var certsWithoutCustomFields = 0;
+
+        // Initialize cumulative lists for unmatched and successfully updated certificates
+        var cumulativeUnmatchedCerts = new List<string>();
+        int unmatchedCount = 0;
+        var cumulativePartiallyProcessedCerts = new List<string>();
+        int partiallyProcessedCount = 0;
+        var cumulativeSuccessfullyUpdatedCerts = new List<string>();
+        int successfullyUpdatedCount = 0;
+
+        // Initialize a list to collect certificates with missing custom fields
+        var cumulativeMissingCustomFields = new List<string>();
+        int missingCustomFields = 0;
+        while (hasMorePages)
+        {
+            // Get the current page of certificates
+            var certsPage = kfClient.GetCertificatesByIssuer(settings.keyfactorDigicertIssuedCertQueryTerm,
+                settings.syncRevokedAndExpiredCerts, pageNumber, pageSize);
+            if (certsPage.Count > 0)
+            {
+                _logger.Info(
+                    $"[PAGE INFO] Retrieved {certsPage.Count} certificates on page {pageNumber}. Processing batch.");
+                pageNumber++;
+                // Process the current page of certificates
+                if (configMode == ConfigMode.DCtoKF)
+                    //Find matching cert by serial number 
+                    foreach (var localKfCert in certsPage)
                     {
-                        var digicertlookupurl = "https://www.digicert.com/services/v2/order/certificate/";
+                        var dcResponse =
+                            dcApiKeyClient.GetOrderBySerialOrThumbprint(localKfCert.SerialNumber,
+                                localKfCert.Thumbprint);
 
-                        var bodytemplate = new RootDigicertLookup();
-                        var searchcriterioninstance = new SearchCriterion();
-                        bodytemplate.searchCriteriaList.Add(searchcriterioninstance);
 
-                        digicertlookupurl = digicertlookupurl + certinstance.SerialNumber;
-                        var lookuprequest = new RestRequest(digicertlookupurl);
-                        lookuprequest.AddHeader("Content-Type", "application/json");
-                        lookuprequest.AddHeader("X-DC-DEVKEY", digicertapikey);
-                        var digicertlookupresponse = client.Execute(lookuprequest);
-                        var certcontent = JsonConvert.DeserializeObject<dynamic>(digicertlookupresponse.Content,
-                            new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
-
-                        if (certcontent["certificate"] != null)
+                        if (dcResponse == null)
                         {
-                            digicertcertificates.Add(certcontent);
-                            _logger.Trace("Pulled and storing following cert from digicert: {0}",
-                                digicertlookupresponse.Content);
+                            cumulativeUnmatchedCerts.Add(localKfCert.SerialNumber);
+                            continue; // Skip to the next Keyfactor cert
                         }
-                        else
-                        {
-                            _logger.Trace("Failed to retrieve cert {0} from Digicert", digicertlookupresponse.Content);
-                        }
-                    }
 
-                    Console.WriteLine("Pulled DigiCert matching DigiCert cert data.");
-                    _logger.Debug("Pulled DigiCert matching DigiCert cert data.");
+                        // Initialize a flag to track if any fields failed to process
+                        var hasPartialProcessing = false;
 
-                    foreach (var digicertcertinstance in digicertcertificates)
-                    {
-                        var finalsyncclient = new RestClient();
-                        finalsyncclient.Authenticator = new HttpBasicAuthenticator(keyfactorusername, keyfactorpassword);
-                        var finalsyncurl = keyfactorapilocation + "Certificates/Metadata";
-                        //Find matching certificate via Keyfactor ID
-                        var test = digicertcertinstance["certificate"]["serial_number"].ToString().ToUpper();
-                        var query = from kfcertlocal in certlist
-                                    where kfcertlocal.SerialNumber ==
-                                          digicertcertinstance["certificate"]["serial_number"].ToString().ToUpper()
-                                    select kfcertlocal;
-                        var certificateid = query.FirstOrDefault().Id;
+                        // Now we process and prep the data for Keyfactor - first load manual fields.
+                        var keyfactorMetadataPayload = new Dictionary<string, object>();
 
 
-                        var payloadforkf = new KeyfactorMetadataQuery();
-                        payloadforkf.Id = certificateid;
-
-                        if (digicertcertinstance["custom_fields"] != null)
-                            // Getting custom metadata field values
-                            foreach (var metadatafieldinstance in digicertcertinstance["custom_fields"])
-                                if (importallcustomdigicertfields)
+                        // Process manual fields
+                        foreach (var field in unifiedFieldList.Where(f => f.ToolFieldType == UnifiedFieldType.Manual))
+                            try
+                            {
+                                var raw = Helpers.GetPropertyValue(dcResponse, field.DigicertFieldName)?.ToString();
+                                if (raw != null)
                                 {
-                                    // Using autoimport and thus using autorename
-                                    var metadatanamefield = ReplaceAllBannedCharacters(metadatafieldinstance["label"].ToString(),
-                                        allBannedChars);
-                                    payloadforkf.Metadata[metadatanamefield] = metadatafieldinstance["value"];
+                                    using var doc =
+                                        JsonDocument.Parse(
+                                            $"\"{raw.Replace("\\", "\\\\").Replace("\"", "\\\"")}\""); // treat as a JSON string
+                                    var coerced = ValueCoercion.Coerce(doc.RootElement,
+                                        field.KeyfactorDataType, field.KeyfactorOptions);
+                                    if (coerced is not null && !(coerced is string s && string.IsNullOrWhiteSpace(s)))
+                                        keyfactorMetadataPayload[field.KeyfactorMetadataFieldName] = coerced;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.Warn(
+                                    $"[PAGE ERROR] Error processing manual field '{field.KeyfactorMetadataFieldName}' for cert {localKfCert.SerialNumber}: {ex.Message}");
+                                hasPartialProcessing = true;
+                            }
+
+                        // Process custom fields
+                        if (dcResponse.CustomFields != null && dcResponse.CustomFields.Count != 0)
+                            foreach (var field in unifiedFieldList.Where(f =>
+                                         f.ToolFieldType == UnifiedFieldType.Custom))
+                                try
+                                {
+                                    // Find the DC custom field by its DigiCert label
+                                    var localCustomField = dcResponse.CustomFields?
+                                        .FirstOrDefault(cf => cf.Label != null &&
+                                                              cf.Label.Equals(field.DigicertFieldName,
+                                                                  StringComparison.OrdinalIgnoreCase));
+
+                                    if (localCustomField != null)
+                                    {
+                                        var coerced = ValueCoercion.Coerce(
+                                            localCustomField.Value,
+                                            field.KeyfactorDataType,
+                                            field.KeyfactorOptions);
+
+                                        // Only add non-null values; this avoids overwriting existing KF values with blanks.
+                                        if (coerced is not null &&
+                                            !(coerced is string s && string.IsNullOrWhiteSpace(s)))
+                                        {
+                                            keyfactorMetadataPayload[field.KeyfactorMetadataFieldName] = coerced;
+                                            _logger.Trace($"Coerced DigiCert field '{field.DigicertFieldName}' to " +
+                                                          $"Keyfactor '{field.KeyfactorMetadataFieldName}' as type {field.KeyfactorDataType}: {coerced}");
+                                        }
+                                        else
+                                        {
+                                            _logger.Debug(
+                                                $"Skipping empty/null value for '{field.KeyfactorMetadataFieldName}' (source '{field.DigicertFieldName}').");
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.Warn(
+                                        $"[PAGE ERROR] Error processing custom field '{field.KeyfactorMetadataFieldName}' for cert {localKfCert.SerialNumber}: {ex.Message}");
+                                    hasPartialProcessing = true;
+                                }
+                        else
+                            certsWithoutCustomFields++;
+
+                        // Update metadata in Keyfactor
+                        if (keyfactorMetadataPayload.Count == 0)
+                            _logger.Debug(
+                                $"Skipping metadata upload for certificate {localKfCert.SerialNumber} as the payload is empty.");
+                        else
+                            try
+                            {
+                                if (kfClient.UpdateCertificateMetadata(localKfCert.Id, keyfactorMetadataPayload))
+                                {
+                                    cumulativeSuccessfullyUpdatedCerts.Add(localKfCert.SerialNumber);
+                                    _logger.Debug(
+                                        $"Updated metadata for certificate with Thumbprint {localKfCert.Thumbprint}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.Warn(
+                                    $"[PAGE ERROR] Error updating metadata for cert {localKfCert.SerialNumber}: {ex.Message}");
+                                hasPartialProcessing = true;
+                            }
+
+                        // Update counters
+                        if (hasPartialProcessing)
+                            cumulativePartiallyProcessedCerts.Add(localKfCert.SerialNumber);
+                        else
+                            totalCertsProcessed++;
+                    }
+                else if (configMode == ConfigMode.KFtoDC)
+                    foreach (var localKfCert in certsPage)
+                        if (localKfCert.Metadata != null && localKfCert.Metadata.Count != 0)
+                        {
+                            bool fullyUpdatedMetadata = true;
+                            try
+                            {
+                                // --- call site patch ---
+                                var dcResponse =
+                                    dcApiKeyClient.GetOrderBySerialOrThumbprint(localKfCert.SerialNumber,
+                                        localKfCert.Thumbprint);
+                                var dcOrderId = dcResponse.Id;
+
+                                // Build a fast lookup for your mapping by KF metadata field name (case-insensitive)
+                                var map = unifiedFieldList.Where(t => t.ToolFieldType == UnifiedFieldType.Custom)
+                                    .ToDictionary(f => f.KeyfactorMetadataFieldName,
+                                        f => f,
+                                        StringComparer.OrdinalIgnoreCase);
+
+                                foreach (var fieldInKf in localKfCert.Metadata)
+                                {
+                                    if (!map.TryGetValue(fieldInKf.Key, out var u))
+                                        continue; // no mapping for this KF field
+
+                                    var dcMetadataId =
+                                        u.DigiCertMetadaFieldId; // ensure your model uses this exact name
+                                    if (dcMetadataId <= 0)
+                                        continue; // can't push without DigiCert metadata_id
+
+                                    // Pick DigiCert type: config wins; else derive from KF type
+                                    var dcType = u.DigicertDataType != DigiCertCustomFieldDataType.Anything
+                                        ? u.DigicertDataType
+                                        : Helpers.ToDigiCertDataType(u.KeyfactorDataType);
+
+                                    var raw = fieldInKf.Value; // often string; can be object - normalize:
+                                    var rawString = raw;
+
+                                    var coerced =
+                                        ValueCoercionDC.CoerceForDigiCert(rawString, dcType, u.KeyfactorOptions);
+
+                                    if (!dcApiKeyClient.UpdateOrderCustomFieldValue(dcOrderId, dcMetadataId,
+                                            coerced))
+                                    {
+                                        fullyUpdatedMetadata = false;
+                                        _logger.Warn(
+                                            $"Failed to update DigiCert custom field '{u.DigicertFieldName}' for cert {localKfCert.SerialNumber}");
+                                    }
+                                }
+
+                                if (fullyUpdatedMetadata)
+                                {
+                                    totalCertsProcessed++; // Increment total processed count
+                                    cumulativeSuccessfullyUpdatedCerts.Add(localKfCert.SerialNumber);
                                 }
                                 else
                                 {
-                                    //Using custom names
-                                    var metadatanamequery = from customfieldinstance in kfcustomfields
-                                                            where customfieldinstance.DigicertFieldName ==
-                                                                  metadatafieldinstance["label"]
-                                                            select customfieldinstance;
-                                    if (metadatanamequery.FirstOrDefault() != null)
-                                        payloadforkf.Metadata[metadatanamequery.FirstOrDefault().DigicertFieldName] =
-                                            metadatafieldinstance["value"];
+                                    cumulativePartiallyProcessedCerts.Add(localKfCert.SerialNumber);
                                 }
-
-                        var flattenedcert = Flatten(digicertcertinstance);
-                        //Getting manually selected metadata field values (not custom in DigiCert)
-                        foreach (var manualinstance in kfmanualfields)
-                            if (flattenedcert[manualinstance.DigicertFieldName] != null)
-                                payloadforkf.Metadata[manualinstance.KeyfactorMetadataFieldName] =
-                                    flattenedcert[manualinstance.DigicertFieldName].ToString();
-                        //Sending the payload off to Keyfactor for the update
-                        var finalsyncreq = new RestRequest(finalsyncurl);
-                        finalsyncreq.AddHeader("Content-Type", "application/json");
-                        finalsyncreq.AddHeader("x-keyfactor-api-version", "1");
-                        finalsyncreq.AddHeader("x-keyfactor-requested-with", "APIClient");
-                        var serializedsyncfield = JsonConvert.SerializeObject(payloadforkf);
-                        _logger.Trace("Sending Metadata update to KF for cert ID {0}, metadata update: {1}",
-                            payloadforkf.Id.ToString(), serializedsyncfield);
-
-                        finalsyncreq.AddParameter("application/json", serializedsyncfield, ParameterType.RequestBody);
-                        finalsyncclient.Put(finalsyncreq);
-                        ++certcounttracker;
-                    }
-
-                
-
-
-                // Update the count of items downloaded so far
-                certsdownloaded += batchsize;
-
-                // Check if all items have been downloaded
-                if (certlist.Count == 0)
-                {
-                    Console.WriteLine(
-                        $"Metadata sync from Keyfactor to DigiCert complete. Number of certs synced: {certcounttracker.ToString()}");
-                    _logger.Debug(
-                        $"Metadata sync from Keyfactor to DigiCert complete. Number of certs synced: {certcounttracker.ToString()}");
-
-                    break;
-                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.Error(
+                                    $"Error updating DigiCert custom field for cert {localKfCert.SerialNumber}: {ex.Message}");
+                            }
+                        }
+                        else
+                        {
+                            certsWithoutCustomFields++;
+                            cumulativeMissingCustomFields.Add(localKfCert.SerialNumber);
+                        }
+                else
+                    throw new ArgumentException("Invalid configuration mode. Please specify KFtoSC or SCtoKF.");
+                // Flushing lists to avoid memory issues on large syncs
+                cumulativeSuccessfullyUpdatedCerts.FlushRemainder(
+                    _logger,
+                    label: "SuccessfullyUpdated",
+                    totalCount: ref successfullyUpdatedCount
+                );
+                cumulativePartiallyProcessedCerts.FlushRemainder(
+                    _logger,
+                    label: "PartiallyProcessed",
+                    totalCount: ref partiallyProcessedCount
+                );
+                cumulativeUnmatchedCerts.FlushRemainder(
+                    _logger,
+                    label: "UnmatchedBetweenKfAndDc",
+                    totalCount: ref unmatchedCount
+                );
+                cumulativeMissingCustomFields.FlushRemainder(
+                    _logger,
+                    label: "MissingCustomFields",
+                    totalCount: ref missingCustomFields
+                );
+            }
+            else
+            {
+                hasMorePages = false; // No more certificates to retrieve
             }
         }
 
-        Environment.Exit(0);
+        // Log cumulative results before the application finishes
+        _logger.Info(
+            $"[SUMMARY] Completed retrieval and processing of certificates. Total certificates processed successfully: {totalCertsProcessed}. Certs without Custom Fields data: {certsWithoutCustomFields}.");
+        if (partiallyProcessedCount + unmatchedCount > 0)
+            _logger.Warn(
+                $"[SUMMARY] Total certificates with partial processing or errors: {partiallyProcessedCount + unmatchedCount}.");
+        if (unmatchedCount > 0)
+            _logger.Warn(
+                $"[SUMMARY] No matching DigiCert certificates found for {unmatchedCount} Keyfactor certs.");
+        // Log aggregated warnings for missing custom fields during SCtoKF sync
+        if (missingCustomFields > 0)
+        {
+            _logger.Info(
+                $"[SUMMARY] No Metadata found for {missingCustomFields} DigiCert certificates in Keyfactor.");
+        }
+        // End of the run
+        _logger.Info("============================================================");
+        _logger.Info($"[END] DigiCert Metadata Sync - Run completed at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        _logger.Info($"[RUN ID: {runId}]");
+        _logger.Info("============================================================");
     }
 }
