@@ -1,0 +1,103 @@
+{
+  "_comments": {
+    "ManualFields": "List of fields used for loading static information from Sectigo as certificate Metadata in Keyfactor.",
+    "CustomFields": "List of Custom Fields/Metadata Fields to be synced between Keyfactor and Sectigo.",
+    "digicertFieldName": "The name of the field in DigiCert. If manual field, an address into the Sectigo Certificate Details json response.",
+    "digicertDataType": "Corresponds to what the datatype is in DigiCert. Only applies to custom fields, used for automated field creation in DigiCert. Options available: 0=Anything, 1=Text, 2=Int, 3=EmailAddress, 4=EmailList. Drop down type is not suppported.",
+    "keyfactorMetadataFieldName": "The name of the field in Keyfactor. This must not contain spaces, or a variety of other characters. Only [a-zA-Z0-9-_] fitting characters are accepted.",
+    "keyfactorDescription": "A description of the metadata field for use with Keyfactor.",
+    "keyfactorDataType": "The data type of the field for Keyfactor. String = 1, Integer = 2, Date = 3, Boolean = 4, MultipleChoice = 5, BigText = 6, Email = 7.",
+    "keyfactorHint": "A short hint to guide users on what to enter in the field, displayed in Keyfactor.",
+    "keyfactorValidation": "A RegEx expression to validate the field's input. Only applicable for string fields.",
+    "keyfactorEnrollment": "How the metadata field is handled in Keyfactor during certificate enrollment. 0=Optional, 1=Required, 2=Hidden",
+    "keyfactorMessage": "A message to be displayed when validation fails.",
+    "keyfactorOptions": "An array of values for multiple-choice fields. Ignored for other data types. (e.g. ['option1','option2'])",
+    "keyfactorDefaultValue": "A default value for the field. Only applicable for certain data types.",
+    "keyfactorDisplayOrder": "The order in which the field is displayed.",
+    "keyfactorCaseSensitive": "Whether validation is case-sensitive. Only applicable for string fields with validation."
+  },
+  "ManualFields": [
+    {
+      "digicertFieldName": "id",
+      "keyfactorMetadataFieldName": "DigicertID",
+      "keyfactorDescription": "Digicert Assigned Cert ID",
+      "digicertDataType": null,
+      "keyfactorDataType": 2,
+      "keyfactorHint": null,
+      "keyfactorAllowAPI": "True",
+      "keyfactorValidation": null,
+      "keyfactorMessage": null,
+      "keyfactorEnrollment": 0,
+      "keyfactorOptions": null,
+      "keyfactorDefaultValue": null,
+      "keyfactorCaseSensitive": false,
+      "keyfactorDisplayOrder": 3
+    },
+    {
+      "digicertFieldName": "additional_emails",
+      "keyfactorMetadataFieldName": "additional_emails",
+      "keyfactorDescription": "Digicert Additional notification emails",
+      "keyfactorDataType": 7,
+      "digicertDataType": null,
+      "keyfactorHint": null,
+      "keyfactorAllowAPI": "True",
+      "keyfactorValidation": null,
+      "keyfactorMessage": null,
+      "keyfactorEnrollment": 0,
+      "keyfactorOptions": null,
+      "keyfactorDefaultValue": null,
+      "keyfactorCaseSensitive": false,
+      "keyfactorDisplayOrder": 3
+    },
+    {
+      "digicertFieldName": "certificate.organization.id",
+      "keyfactorMetadataFieldName": "certificate-organization-id",
+      "keyfactorDescription": "Digicert Assigned Org ID for cert",
+      "keyfactorDataType": 2,
+      "digicertDataType": null,
+      "keyfactorHint": null,
+      "keyfactorAllowAPI": "True",
+      "keyfactorValidation": null,
+      "keyfactorMessage": null,
+      "keyfactorEnrollment": 0,
+      "keyfactorOptions": null,
+      "keyfactorDefaultValue": null,
+      "keyfactorCaseSensitive": false,
+      "keyfactorDisplayOrder": 3
+    }
+  ],
+  "CustomFields": [
+    {
+      "digicertFieldName": "To DigiCert Date",
+      "keyfactorMetadataFieldName": "to_digicert_date",
+      "keyfactorDescription": "Date for digicert",
+      "keyfactorDataType": 3,
+      "digicertDataType": 0,
+      "keyfactorHint": null,
+      "keyfactorAllowAPI": "True",
+      "keyfactorValidation": null,
+      "keyfactorMessage": null,
+      "keyfactorEnrollment": 0,
+      "keyfactorOptions": null,
+      "keyfactorDefaultValue": null,
+      "keyfactorCaseSensitive": false,
+      "keyfactorDisplayOrder": 3
+    },
+    {
+      "digicertFieldName": "To DigiCert MC",
+      "keyfactorMetadataFieldName": "to_digicert_mc",
+      "keyfactorDescription": "Multiple choice for digicert",
+      "keyfactorDataType": 5,
+      "digicertDataType": 0,
+      "keyfactorHint": null,
+      "keyfactorAllowAPI": "True",
+      "keyfactorValidation": null,
+      "keyfactorMessage": null,
+      "keyfactorEnrollment": 0,
+      "keyfactorOptions": ["Option1","Option2"],
+      "keyfactorDefaultValue": null,
+      "keyfactorCaseSensitive": false,
+      "keyfactorDisplayOrder": 3
+    }
+  ]
+}

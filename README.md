@@ -5,9 +5,9 @@
 <p align="center">
   <!-- Badges -->
 <img src="https://img.shields.io/badge/integration_status-production-3D1973?style=flat-square" alt="Integration Status: production" />
-<a href="https://github.com/Keyfactor/digicert-metadata-sync/releases"><img src="https://img.shields.io/github/v/release/Keyfactor/digicert-metadata-sync?style=flat-square" alt="Release" /></a>
-<img src="https://img.shields.io/github/issues/Keyfactor/digicert-metadata-sync?style=flat-square" alt="Issues" />
-<img src="https://img.shields.io/github/downloads/Keyfactor/digicert-metadata-sync/total?style=flat-square&label=downloads&color=28B905" alt="GitHub Downloads (all assets, all releases)" />
+<a href="https://github.com/Keyfactor/digicert-metadata-sync-dev/releases"><img src="https://img.shields.io/github/v/release/Keyfactor/digicert-metadata-sync-dev?style=flat-square" alt="Release" /></a>
+<img src="https://img.shields.io/github/issues/Keyfactor/digicert-metadata-sync-dev?style=flat-square" alt="Issues" />
+<img src="https://img.shields.io/github/downloads/Keyfactor/digicert-metadata-sync-dev/total?style=flat-square&label=downloads&color=28B905" alt="GitHub Downloads (all assets, all releases)" />
 </p>
 
 <p align="center">
@@ -32,175 +32,227 @@ The DigiCert Metadata Sync is open source and there is **no SLA**. Keyfactor wil
 
 
 ## Overview
-This tool can:
 
-1. **Create/align metadata fields in Keyfactor** to match:
-   - DigiCert **Custom Metadata Fields** (aka “custom fields”), and
-   - Useful **non‑custom fields** from DigiCert order/certificate data (e.g., DigiCert Order ID, organization contact details). These are called **manual fields** in this project.
-2. **Sync field values** from DigiCert back into the matching Keyfactor metadata fields.
+### ⚠️ Important Notice
+**Configuration files and their location have changed since version 2.1.0** Please review the documentation and see the new stock configuration files for guidance on how to set up the tool. The configuration files will need to be placed in the `config` subdirectory for use with the tool.
 
-Before running, configure **`DigicertMetadataSync.dll.config`** and **`manualfields.json`** (both described below).
+This tool automates the synchronization of metadata fields between **DigiCert CertCentral** and **Keyfactor Command**. It performs two primary operations:
+
+1. **DCtoKF** - Synchronizes *manual fields* and *custom fields* from DigiCert into Keyfactor.
+2. **KFtoDC** - Synchronizes *custom fields* from Keyfactor back into DigiCert.
+
+> **Notes**
+>
+> * **ManualFields** are values present in DigiCert's *Order Info* JSON and are mapped by dot path (e.g., `organization_contact.email`). Manual field data is available **only** for DigiCert -> Keyfactor sync.
+> * **CustomFields** are DigiCert CertCentral custom fields and can be synchronized in **both** directions (DigiCert <--> Keyfactor).
+> * The list of available **manual** fields is derived from the DigiCert *Order Info* API. See: [DigiCert Order Info API response](https://dev.digicert.com/en/certcentral-apis/services-api/orders/order-info.html)
+> * Certificates must already exist in Keyfactor; this tool does **not** import certificates.
+
+---
+
+## Installation and Usage
+
+### Prerequisites
+
+- .NET **9** (or newer) runtime.
+- DigiCert **API key** with **API key restrictions (optional)** set to **None** when creating the key in CertCentral.
+- A Keyfactor account with API access and permission to create/edit metadata fields and modify certificates.
+- The following files in the **`config`** subdirectory:
+  - `config.json`
+  - `fields.json`
+  - `bannedcharacters.json` (auto-generated on first run if needed)
+
+Additional notes:
+
+- Designed for **Keyfactor 25.1**; tested compatible with older versions.
+- The tool communicates directly with **Keyfactor Command API** and **DigiCert** - no Keyfactor Gateway dependency.
+- Independent logging: logs are written to a local `logs/` folder next to the executable.
+
+### Running the Tool
+
+From the tool directory, open PowerShell and run:
+
+```powershell
+./DigicertMetadataSync.exe dctokf
+```
+
+or
+
+```powershell
+./DigicertMetadataSync.exe kftodc
+```
+
+> **Tip:** The tool performs one sync in the specified direction and then exits. Schedule it (e.g., with Windows Task Scheduler) for recurring syncs.
+
+---
+
+## Command Line Modes
+
+One of the following modes must be supplied as the **first (and only) argument**:
+
+- `dctokf`  
+  Synchronizes **manual** and **custom** fields **from DigiCert to Keyfactor**.
+  - Reads mappings from `fields.json` for manual fields.
+  - If `importAllCustomDigicertFields` is **true**, imports *all* DigiCert custom fields; otherwise uses only those listed under `CustomFields` in `fields.json`.
+  - Ensures required metadata fields exist in Keyfactor, creating missing ones.
+  - Locates DigiCert-issued certs in Keyfactor (by Issuer DN filter).
+  - Updates Keyfactor metadata with coerced values.
+
+- `kftodc`  
+  Synchronizes **custom** fields **from Keyfactor to DigiCert**.
+  - Reads mappings from `fields.json` for custom fields.
+  - Ensures required metadata fields exist in Keyfactor.
+  - If `createMissingFieldsInDigicert` is **true** and `importAllCustomDigicertFields` is **false**, attempts to create missing DigiCert custom fields (limited by DigiCert API capabilities).
+  - Locates DigiCert-issued certs in Keyfactor (by Issuer DN filter).
+  - Updates DigiCert custom field values with coerced data types.
+
+> **Important:** Run `dctokf` at least once before running `kftodc` so Keyfactor metadata fields exist and have been normalized.
 
 ---
 
 ## Settings
 
-### `DigicertMetadataSync.dll.config` keys
-- **`DigicertAPIKey`**  
-  Your DigiCert API Key with **API key restrictions** set to **Orders, Domains and Organizations".
+### 1. `config\config.json`
 
-- **`DigicertAPIKeyTopPerm`**  
-  A second DigiCert API key with **top-level permissions** (needed to read all custom fields).In DigiCert, to obtain one, you must keep the API key’s **API key restrictions** at **None** when creating it.
+> See `stock-config.json` for a complete example.
 
-- **`KeyfactorDomainAndUser`**  
-  A Keyfactor login in the format `DOMAIN\username` with permissions to create metadata fields and update certificates.
+- **`digicertApiKey`** - CertCentral API key. Use a key created with **API key restrictions = None**.
+- **`keyfactorDomainAndUser`** - e.g., `DOMAIN\\Username`. User must be permitted to use the Keyfactor API, create/edit metadata fields, and edit certificates.
+- **`keyfactorPassword`** - Password for the Keyfactor user.
+- **`keyfactorApiUrl`** - Root Keyfactor API URL, e.g., `https://your-keyfactor-server/keyfactorapi/`.
+- **`keyfactorDigicertIssuedCertQueryTerm`** - Substring matched against Issuer DN to identify DigiCert‑issued certificates (e.g., `"DigiCert"`).
+- **`importAllCustomDigicertFields`** - If `true`, import all DigiCert custom fields and auto-create Keyfactor metadata fields to match (ignores `CustomFields` entries).
+- **`importDataForDeactivatedDigiCertFields`** - If `true`, process DigiCert fields even if deactivated.
+- **`syncRevokedAndExpiredCerts`** - If `true`, include revoked and expired certificates in sync.
+- **`keyfactorPageSize`** - Batch size for Keyfactor certificate processing (default: `100`).
+- **`keyfactorDateFormat`** - Date format for Keyfactor writes (defaults vary by Keyfactor version; `M/d/yyyy h:mm:ss tt` for 25.1, `yyyy-MM-dd` for some older Keyfactor versions).
+- **`createMissingFieldsInDigicert`** - If `true` (and `importAllCustomDigicertFields` is `false`), create missing DigiCert custom fields when syncing KF→DC (subject to DigiCert API limitations).
 
-- **`KeyfactorPassword`**  
-  Password for the `KeyfactorDomainAndUser` account.
-
-- **`KeyfactorCertSearchReturnLimit`**  
-  Maximum number of certificates the tool will request from Keyfactor when searching (use a number that exceeds the total number of certs you are trying sync when running in prod).
-
-- **`KeyfactorAPIEndpoint`**  
-  Your Keyfactor API base URL, e.g. `https://example.com/KeyfactorAPI/`
-
-- **`KeyfactorDigicertIssuedCertQueryTerm`**  
-  A substring present in the **Issuer DN** of DigiCert‑issued certs in your Keyfactor instance (e.g., `"DigiCert"`). Used to scope the Keyfactor query to DigiCert certs only.
-
-- **`ImportAllCustomDigicertFields`** (boolean)  
-  If `true`, import **all** custom fields from DigiCert automatically (labels are auto‑converted to valid Keyfactor names). If `false`, only the custom fields listed in the **`CustomFields`** section of `manualfields.json` are imported.
-
-- **`ReplaceDigicertWhiteSpaceCharacterInName`**  
-  When `ImportAllCustomDigicertFields=true`, DigiCert labels that contain spaces will be converted to Keyfactor‑safe names using this string. Example: set to `"_"` to turn `"Requester Email"` into `"Requester_Email"`.
-
-- **`SyncReissue`** (boolean)
-  When `true`, the Keyfactor lookup includes **revoked** and **expired** certificates (`pq.includeRevoked=true&pq.includeExpired=true`).  
--
-
-### Example `DigicertMetadataSync.dll.config`
-File is available within the repository named as App.config (**should be renamed to DigicertMetadataSync.dll.config for actual use**).
-```xml
-<?xml version="1.0" encoding="utf-8" ?>
-<configuration>
-	<appSettings>
-		<add key="DigicertAPIKey" value="" />
-		<add key="DigicertAPIKeyTopPerm" value="" />
-		<add key="KeyfactorDomainAndUser" value="" />
-		<add key="KeyfactorPassword" value="" />
-		<add key="KeyfactorCertSearchReturnLimit" value="5000000" />
-		<add key="KeyfactorAPIEndpoint" value="" />
-		<add key="KeyfactorDigicertIssuedCertQueryTerm" value="DigiCert" />
-		<add key="ImportAllCustomDigicertFields" value="False" />
-		<add key="ReplaceDigicertWhiteSpaceCharacterInName" value="_-_" />
-		<add key="ImportDataForDeactivatedDigiCertFields" value="False" />
-		<add key="SyncReissue" value="False" />
-	</appSettings>
-</configuration>
-```
 ---
 
-## `manualfields.json`
+### 2. `config\fields.json`
 
-This file tells the tool **which fields** to create in Keyfactor and **how to map** DigiCert values into them. It has two top‑level arrays:
+> See `stock-fields.json` for examples.
+
+For each mapping:
+
+- **`digicertFieldName`** - DigiCert field name; for manual fields, a **dot path** into the Order Info JSON.
+- **`digicertCustomFieldDataType`** - Input type for DigiCert **custom** fields:  
+  `0` = Anything, `1` = Text, `2` = Int, `3` = EmailAddress, `4` = EmailList.  
+  *(Dropdowns are not supported by the DigiCert API.)*
+- **`keyfactorMetadataFieldName`** - Target Keyfactor metadata field name (**[A-Za-z0-9-_]** only; no spaces).
+- **`keyfactorDescription`** - Description shown in Keyfactor.
+- **`keyfactorDataType`** - Keyfactor type: `1` String, `2` Integer, `3` Date, `4` Boolean, `5` MultipleChoice, `6` BigText, `7` Email.
+- **`keyfactorHint`** - UI hint text in Keyfactor.
+- **`keyfactorValidation`** - Regex validation (string fields only).
+- **`keyfactorEnrollment`** - Enrollment behavior (e.g., `0` Optional, `1` Required, `2` Hidden).
+- **`keyfactorMessage`** - Validation failure message.
+- **`keyfactorOptions`** - Values for MultipleChoice (ignored otherwise).
+- **`keyfactorDefaultValue`** - Default value, if applicable.
+- **`keyfactorDisplayOrder`** - Display order in Keyfactor.
+- **`keyfactorCaseSensitive`** - Whether validation is case-sensitive (string fields with validation).
+ 
+Please review this for the exact values available for each `keyfactor` field: [Keyfactor API Reference](https://software.keyfactor.com/Core-OnPrem/v25.2/Content/WebAPI/KeyfactorAPI/MetadataFieldsPost.htm)
+
+---
+
+### 3. `config\bannedcharacters.json`
+
+Generated on first `dctokf` run if DigiCert custom field names contain characters not permitted by Keyfactor (only alphanumeric, `-`, and `_` are allowed). Fill in `replacementCharacter` for each banned `character`, then re-run.
+
+**Example:**
 
 ```jsonc
-{
-  "ManualFields": [ /* non-custom DigiCert fields you want to map */ ],
-  "CustomFields": [ /* DigiCert Custom Metadata Fields you want to map */ ]
-}
+[
+  { "character": " ", "replacementCharacter": "_" },
+  { "character": "/", "replacementCharacter": "-" }
+]
 ```
 
-### Common properties (apply to entries in **both** arrays)
-
-| Property | Type | Required | Description |
-|---|---|---:|---|
-| `DigicertFieldName` | string | yes | For **ManualFields**: a **dot path** into the DigiCert order/cert object (e.g., `organization_contact.email`). For **CustomFields**: the **label** of the DigiCert custom field _exactly as it appears_ in DigiCert. |
-| `KeyfactorMetadataFieldName` | string | no | The Keyfactor field name to create/use. If omitted for **CustomFields**, the tool will derive a safe name from `DigicertFieldName` (label), replacing spaces with `ReplaceDigicertWhiteSpaceCharacterInName`. |
-| `KeyfactorDescription` | string | no | Description to show in Keyfactor for this field. |
-| `KeyfactorDataType` | string | yes | One of the **Keyfactor data types** listed below (e.g., `"String"`, `"Integer"`…). |
-| `KeyfactorHint` | string | no | Hint to display in Keyfactor’s UI (e.g., sample format). |
-| `KeyfactorAllowAPI` | bool/string | no | Defaults to `true`. Leave `true` to allow this tool to manage the field via API. |
-
-#### New/advanced properties
-These map to Keyfactor’s Metadata Field schema and are optional unless your use case requires them.
-
-| Property | Type | Required | Notes |
-|---|---|---:|---|
-| `KeyfactorValidation` | string | no | Regex for **String** fields only. If set, `KeyfactorMessage` should describe the validation failure. |
-| `KeyfactorMessage` | string | no | Validation error message shown if regex fails. |
-| `KeyfactorEnrollment` | string | no | One of: `"Optional"` (default), `"Required"`, `"Hidden"`. |
-| `KeyfactorOptions` | array\<string> | no | Choices for **Multiple Choice** fields. You may list them as an **array** in config; the tool serializes them to a **comma‑separated string** when posting to Keyfactor. |
-| `KeyfactorDefaultValue` | string | no | Default field value. |
-
-### Example `manualfields.json`
-File is available within the repository.
-```json
-{
-  "ManualFields": [
-    {
-      "DigicertFieldName": "id",
-      "KeyfactorMetadataFieldName": "DigicertID",
-      "KeyfactorDescription": "Digicert Assigned Cert ID",
-      "KeyfactorDataType": "Integer",
-      "KeyfactorHint": "",
-      "KeyfactorAllowAPI": "True",
-      "KeyfactorValidation": "",
-      "KeyfactorMessage": "",
-      "KeyfactorEnrollment": "Optional",
-      "KeyfactorOptions": [],
-      "KeyfactorDefaultValue": ""
-    }
-  ],
-  "CustomFields": [
-    {
-      "DigicertFieldName": "Field2",
-      "KeyfactorMetadataFieldName": "Field2",
-      "KeyfactorDescription": "Test",
-      "KeyfactorDataType": "String",
-      "KeyfactorHint": "Pick one or more",
-      "KeyfactorAllowAPI": "True",
-      "KeyfactorValidation": "",
-      "KeyfactorMessage": "",
-      "KeyfactorEnrollment": "Optional",
-      "KeyfactorOptions": "",
-      "KeyfactorDefaultValue": "Test"
-    }
-  ]
-}
-```
-
-> **Notes**  
-> • For **ManualFields**, `DigicertFieldName` must match the **flattened path** into the DigiCert order object returned by the Order Info API (e.g., `organization_contact.email`).  
-> • For **CustomFields**, `DigicertFieldName` must match the **label** in DigiCert (the tool will convert it to a Keyfactor‑safe name if you omit `KeyfactorMetadataFieldName`).  
-> • If `ImportAllCustomDigicertFields=true`, you can leave `CustomFields` empty—every custom field in DigiCert will be created/mapped automatically.
+If any `replacementCharacter` remains `null`, the tool exits with an error on the next run.
 
 ---
 
-## Keyfactor Metadata Field Data Types
+### 4. `config\nlog.config` (Logging)
 
-Use the **names** below in `KeyfactorDataType` (the tool maps them to the corresponding numeric codes internally when calling the Keyfactor API):
+Logging uses **NLog** and writes to a local `logs/` folder.
 
-| Name | Code | Typical uses |
-|---|---:|---|
-| `String` | 1 | Free text / short text |
-| `Integer` | 2 | Numeric values |
-| `Date` | 3 | Dates |
-| `Boolean` | 4 | True/False |
-| `Multiple Choice` | 5 | Fixed list of values (uses `KeyfactorOptions`) |
-| `Big Text` | 6 | Long multi‑line text |
+- Configure minimum levels and targets in `rules`.
+- Two files are typically produced: a main log (all levels) and an error-only log.
+
+> Adjust `minLevel` in the `<rules>` section to change verbosity. Available levels: `Trace`, `Debug`, `Info`. `Info` for default.
 
 ---
 
-## Sync flow (high level)
-1. **Field alignment:** Creates/updates metadata fields in Keyfactor as defined in `manualfields.json` (plus, optionally, all DigiCert custom fields).  
-1a. If a field is detected as having invalid characters that Keyfactor does not accept, the tool exits with an appropriate message and replacechar.json is populated. 
-2. **Value sync:** Depending on whether you set the tool to `kftodc` or `dctokf`, the values are synced either from Keyfactor to DigiCert or from DigiCert to Keyfactor.  
+## Example Workflow
 
+1. **Initial Setup**
+   - Populate `config\config.json` with DigiCert and Keyfactor credentials and settings.
+   - Define `ManualFields` and `CustomFields` lists in `config\fields.json`.
+
+2. **First Run (Detect Banned Characters)**
+   ```powershell
+   ./DigicertMetadataSync.exe dctokf
+   ```
+   - If banned characters are found in DigiCert custom field names, the tool logs a warning and exits.
+   - A `bannedcharacters.json` file is created with `replacementCharacter: null` entries.
+
+3. **Populate Replacements**
+   - Edit `config\bannedcharacters.json` and set `replacementCharacter` values.
+   - Save the file.
+
+4. **Second Run (Create Fields & Sync Data)**
+   ```powershell
+   ./DigicertMetadataSync.exe dctokf
+   ```
+   - Fields are created/validated; data is synchronized DigiCert -> Keyfactor.
+   - (Optional) Run `kftodc` to push Keyfactor values back to DigiCert custom fields.
 
 ---
 
-## Troubleshooting tips
-- Validation only applies to **String** fields—omit `KeyfactorValidation`/`KeyfactorMessage` for other types.
+## How It Works
+
+### DigiCert -> Keyfactor (`dctokf`)
+1. Read manual mappings from `fields.json`.
+2. Read custom fields from DigiCert (all if `importAllCustomDigicertFields` is `true`; otherwise only those listed).
+3. Ensure Keyfactor metadata fields exist (create missing).
+4. Query Keyfactor for DigiCert-issued certs (Issuer DN filter).
+5. For each certificate:
+   - Fetch DigiCert order data (manual + custom).
+   - Coerce types to Keyfactor formats.
+   - Update Keyfactor metadata values.
+
+### Keyfactor -> DigiCert (`kftodc`)
+1. Read custom field mappings from `fields.json`.
+2. Ensure Keyfactor metadata fields exist (create missing).
+3. If enabled, create missing DigiCert custom fields (API limitations apply).
+4. Query Keyfactor for DigiCert-issued certs.
+5. For each certificate:
+   - Read Keyfactor metadata values.
+   - Coerce to DigiCert data types.
+   - Update DigiCert custom field values on the order.
+
+**Retry logic:** When DigiCert rate-limits, the tool honors the DigiCert-supplied backoff time before retrying.
+
+---
+
+## Usage Recommendations
+
+- Schedule periodic runs using Windows Task Scheduler (or equivalent).
+- Run from the tool's directory; ensure the account can read/write the `config` folder.
+- Sync is **destructive** for the destination side (values are overwritten in the destination of the chosen direction).
+- Differential change tracking is **not** supported due to DigiCert and Keyfactor API limitations.
+
+---
+
+## Troubleshooting
+
+- **Authentication errors** - Verify DigiCert API key and Keyfactor credentials/URL.
+- **Keyfactor field name errors** - Ensure `bannedcharacters.json` replacements are set and valid.
+- **Field creation failures** - Check Keyfactor logs for details; API errors may be non-specific.
+- **Custom fields with options in DigiCert** - The DigiCert API cannot create dropdown/option fields; create these manually in CertCentral.
+
+---
 
 
 

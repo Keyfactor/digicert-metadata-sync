@@ -1,0 +1,15 @@
+{
+  "config": {
+    "digicertApiKey": "*****",
+    "keyfactorDomainAndUser": "DOMAIN\\username",
+    "keyfactorPassword": "*****",
+    "keyfactorAPIUrl": "https://keyfactor.test.com/keyfactorapi/",
+    "keyfactorDigicertIssuedCertQueryTerm": "DigiCert",
+    "importAllCustomDigicertFields": false,
+    "importDataForDeactivatedDigiCertFields": false,
+    "syncRevokedAndExpiredCerts": false,
+    "keyfactorPageSize": 100,
+    "keyfactorDateFormat": "M/d/yyyy h:mm:ss tt",
+    "createMissingFieldsInDigicert": true
+  }
+}

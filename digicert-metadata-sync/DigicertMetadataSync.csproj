@@ -12,35 +12,31 @@
 		<PackageReference Include="Keyfactor.Logging" Version="1.2.0" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.8" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.8" />
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="Microsoft.Extensions.Http" Version="9.0.8" />
 		<PackageReference Include="NLog.Extensions.Logging" Version="6.0.3" />
-		<PackageReference Include="Polly" Version="8.6.3" />
-		<PackageReference Include="RestSharp" Version="112.1.0" />
-		<PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.8" />
-		<PackageReference Include="System.Drawing.Common" Version="9.0.8" />
-		<None Update="App - Blank.config">
-			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+		<None Update="config\bannedcharacters.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
-		<None Update="App - Copy.config">
-			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+		<None Update="config\config.json">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
-		<None Update="App.config">
+		<None Update="config\config-mk.json">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
-		<None Update="manualfields - Copy.json">
-			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+		<None Update="config\fields-mk - Copy.json">
+		  <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 		</None>
-		<None Update="manualfields.json">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		<None Update="config\fields.json">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
-		<None Update="customfields.json">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</None>
-		<None Update="NLog.config">
+		<None Update="config\stock-fields.json">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
-		<None Update="replacechar.json">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		<None Update="config\nlog.config">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+		<None Update="config\stock-config.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>
 
