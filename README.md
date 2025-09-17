@@ -114,7 +114,7 @@ One of the following modes must be supplied as the **first (and only) argument**
 
 ### 1. `config\config.json`
 
-> See `stock-config.json` for a complete example.
+> See `stock-config.json` for a complete example. Please input `null` to set a value is empty.
 
 - **`digicertApiKey`** - CertCentral API key. Use a key created with **API key restrictions = None**.
 - **`keyfactorDomainAndUser`** - e.g., `DOMAIN\\Username`. User must be permitted to use the Keyfactor API, create/edit metadata fields, and edit certificates.
