@@ -28,11 +28,6 @@ public class KeyfactorMetadataField
     [JsonPropertyName("CaseSensitive")] public bool CaseSensitive { get; set; } = false; // Default to false
 }
 
-public sealed class KeyfactorMetadataFieldUpdate : KeyfactorMetadataField
-{
-    public int Id { get; set; } // required for update
-}
-
 /// <summary>
 ///     Represents the data types for Keyfactor metadata fields.
 /// </summary>
