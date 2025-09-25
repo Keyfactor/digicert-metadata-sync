@@ -1,3 +1,16 @@
+﻿Version 3.0.0
+    
+    ⚠️ Important Notice
+    **Configuration files and their location have changed since version 2.1.0** Please review the documentation and see the new stock configuration files for guidance on how to set up the tool. 
+    The configuration files will need to be placed in the `config` subdirectory for use with the tool.
+    
+    Rewrote the sync engine to improve performance and resilience.
+    New retry logic now automatically backs off when rate limits are hit on DigiCert.
+    Config system now uses json file instead of xml, and all config files are aggregated in the config directory.
+    Fixed issue with new Keyfactor versions being broken due to lack of DisplayOrder in the metadata fields API.
+    Fixed issue with email fields not syncing properly.
+    Implemented a new logging system using NLog, with log files stored in the logs directory, and an nlog.config file.
+
 Version 2.1.0
 
     Added a system that gathers all non-Keyfactor friendly characters and allows the user to configure an alternative.
